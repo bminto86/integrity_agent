@@ -44,3 +44,19 @@
 - [x] Replace static avatar with animated Mia across all pages
 - [x] Alerts page: Add Mia persona integration
 - [x] VendorDetail page: Add Mia persona integration
+
+## Phase 4 — Hyper-Realistic Mia Avatar
+
+- [x] Generate 5 hyper-realistic avatar options for Mia
+- [x] Present options to user for selection
+- [x] Integrate selected avatar design into the app
+
+## Phase 5 — Avatar Selection Feature
+
+- [x] Generate male avatar option for diverse mix
+- [x] Upload all 6 avatar options to CDN
+- [x] Build avatar selection settings page in the app
+- [x] Store user's avatar preference in database
+- [x] Replace canvas-drawn face with photo-based avatar across all pages
+- [x] Set Option 2 as default avatar
+- [x] Tests for avatar selection feature (62 tests passing)

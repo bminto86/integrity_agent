@@ -12,6 +12,7 @@ import {
   scorecards, InsertScorecard,
   communications, InsertCommunication,
   workforcePlans, InsertWorkforcePlan,
+  userSettings, InsertUserSetting,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -387,4 +388,24 @@ export async function getDashboardStats() {
     openTasks: taskResult?.count ?? 0,
     upcomingMeetings: meetingResult?.count ?? 0,
   };
+}
+
+// ─── User Settings ──────────────────────────────────────────────────────────
+export async function getUserSettings(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function upsertUserSettings(userId: number, settings: Partial<InsertUserSetting>) {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await getUserSettings(userId);
+  if (existing) {
+    await db.update(userSettings).set({ ...settings, updatedAt: new Date() }).where(eq(userSettings.userId, userId));
+  } else {
+    await db.insert(userSettings).values({ userId, ...settings });
+  }
+  return { success: true };
 }

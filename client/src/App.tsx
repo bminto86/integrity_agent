@@ -4,6 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { AvatarProvider } from "./contexts/AvatarContext";
 import DashboardLayout from "./components/DashboardLayout";
 import Home from "./pages/Home";
 import Vendors from "./pages/Vendors";
@@ -19,6 +20,7 @@ import Documents from "./pages/Documents";
 import MeetingSummarizer from "./pages/MeetingSummarizer";
 import Alerts from "./pages/Alerts";
 import Connections from "./pages/Connections";
+import AgentSettings from "./pages/AgentSettings";
 
 function Router() {
   return (
@@ -38,6 +40,7 @@ function Router() {
         <Route path="/summarizer" component={MeetingSummarizer} />
         <Route path="/alerts" component={Alerts} />
         <Route path="/connections" component={Connections} />
+        <Route path="/settings" component={AgentSettings} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>
@@ -49,10 +52,12 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <AvatarProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </AvatarProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

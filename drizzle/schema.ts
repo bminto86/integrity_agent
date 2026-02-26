@@ -203,3 +203,17 @@ export const workforcePlans = mysqlTable("workforce_plans", {
 
 export type WorkforcePlan = typeof workforcePlans.$inferSelect;
 export type InsertWorkforcePlan = typeof workforcePlans.$inferInsert;
+
+// ─── User Settings (avatar preference, etc.) ────────────────────────────────
+export const userSettings = mysqlTable("user_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  avatarId: varchar("avatarId", { length: 64 }).default("option-2").notNull(),
+  agentName: varchar("agentName", { length: 128 }).default("Mia").notNull(),
+  voiceEnabled: boolean("voiceEnabled").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserSetting = typeof userSettings.$inferSelect;
+export type InsertUserSetting = typeof userSettings.$inferInsert;

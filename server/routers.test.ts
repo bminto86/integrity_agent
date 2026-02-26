@@ -62,6 +62,8 @@ vi.mock("./db", () => ({
   getWorkforcePlan: vi.fn().mockResolvedValue({ id: 1, title: "Q1 Plan" }),
   createWorkforcePlan: vi.fn().mockResolvedValue({ insertId: 1 }),
   deleteWorkforcePlan: vi.fn().mockResolvedValue(undefined),
+  getUserSettings: vi.fn().mockResolvedValue({ avatarId: "option-2", agentName: "Mia", voiceEnabled: true }),
+  upsertUserSettings: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 // Mock the LLM module
@@ -587,5 +589,41 @@ describe("auth protection", () => {
     const caller = appRouter.createCaller(createUnauthContext());
     const result = await caller.auth.me();
     expect(result).toBeNull();
+  });
+});
+
+// ─── Settings ──────────────────────────────────────────────────────────────
+describe("settings", () => {
+  it("returns user settings for authenticated user", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const settings = await caller.settings.get();
+    expect(settings).toHaveProperty("avatarId");
+    expect(settings).toHaveProperty("agentName");
+    expect(settings).toHaveProperty("voiceEnabled");
+    expect(settings.avatarId).toBe("option-2");
+    expect(settings.agentName).toBe("Mia");
+    expect(settings.voiceEnabled).toBe(true);
+  });
+
+  it("updates user settings", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.settings.update({ avatarId: "option-3", agentName: "Iris" });
+    expect(result).toEqual({ success: true });
+  });
+
+  it("updates voice setting", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.settings.update({ voiceEnabled: false });
+    expect(result).toEqual({ success: true });
+  });
+
+  it("rejects unauthenticated access to settings.get", async () => {
+    const caller = appRouter.createCaller(createUnauthContext());
+    await expect(caller.settings.get()).rejects.toThrow();
+  });
+
+  it("rejects unauthenticated access to settings.update", async () => {
+    const caller = appRouter.createCaller(createUnauthContext());
+    await expect(caller.settings.update({ avatarId: "option-1" })).rejects.toThrow();
   });
 });

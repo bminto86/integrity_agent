@@ -1,15 +1,69 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Streamdown } from "streamdown";
 import { VoiceButton } from "@/components/VoiceButton";
-import { MiaDigitalHuman, MiaDigitalHumanRef } from "@/components/MiaDigitalHuman";
-import type { MiaMood as DigitalMood } from "@/components/MiaDigitalHuman";
 
 export type MiaMood = "neutral" | "thinking" | "speaking" | "happy" | "concerned";
 
-// Map our mood types to digital human moods
-function toDigitalMood(mood: MiaMood): DigitalMood {
-  return mood as DigitalMood;
+// ─── Avatar context hook (safe fallback if not wrapped) ─────────────────────
+function useAvatarSafe() {
+  try {
+    // Dynamic import to avoid circular deps — we use a simple approach
+    const ctx = (window as any).__miaAvatarCtx;
+    if (ctx) return ctx;
+  } catch {}
+  return {
+    avatar: {
+      imageUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663316543184/kgeOWTiacrGPkfVZ.png",
+      name: "Mia",
+    },
+    agentName: "Mia",
+    voiceEnabled: true,
+  };
+}
+
+// We'll use a global event to sync avatar context
+let _avatarUrl = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663316543184/kgeOWTiacrGPkfVZ.png";
+let _agentName = "Mia";
+let _voiceEnabled = true;
+const _listeners = new Set<() => void>();
+
+export function setMiaGlobalConfig(url: string, name: string, voice: boolean) {
+  _avatarUrl = url;
+  _agentName = name;
+  _voiceEnabled = voice;
+  _listeners.forEach((fn) => fn());
+}
+
+function useMiaConfig() {
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    const listener = () => forceUpdate((n) => n + 1);
+    _listeners.add(listener);
+    return () => { _listeners.delete(listener); };
+  }, []);
+  return { avatarUrl: _avatarUrl, agentName: _agentName, voiceEnabled: _voiceEnabled };
+}
+
+// ─── TTS Helper ─────────────────────────────────────────────────────────────
+function speakText(text: string, onEnd?: () => void) {
+  if (!_voiceEnabled || !window.speechSynthesis) {
+    onEnd?.();
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.95;
+  utterance.pitch = 1.05;
+  // Try to find a good female voice
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(
+    (v) => v.name.includes("Samantha") || v.name.includes("Google UK English Female") || v.name.includes("Microsoft Zira")
+  );
+  if (preferred) utterance.voice = preferred;
+  utterance.onend = () => onEnd?.();
+  utterance.onerror = () => onEnd?.();
+  window.speechSynthesis.speak(utterance);
 }
 
 // ─── Typing indicator dots ────────────────────────────────────────────────
@@ -28,7 +82,9 @@ function TypingDots() {
   );
 }
 
-// ─── Mia Avatar — now an animated digital human ──────────────────────────
+// ─── Photo Avatar with breathing/glow animation ─────────────────────────────
+const SIZE_PX: Record<string, number> = { sm: 48, md: 80, lg: 140, xl: 220 };
+
 export function MiaAvatar({
   mood = "neutral",
   size = "md",
@@ -38,11 +94,58 @@ export function MiaAvatar({
   size?: "sm" | "md" | "lg" | "xl";
   showGlow?: boolean;
 }) {
+  const { avatarUrl } = useMiaConfig();
+  const px = SIZE_PX[size] || 80;
+
+  const glowColor =
+    mood === "speaking" ? "rgba(99,102,241,0.35)" :
+    mood === "thinking" ? "rgba(234,179,8,0.3)" :
+    mood === "happy" ? "rgba(34,197,94,0.3)" :
+    mood === "concerned" ? "rgba(239,68,68,0.3)" :
+    "rgba(99,102,241,0.15)";
+
   return (
-    <MiaDigitalHuman
-      mood={toDigitalMood(mood)}
-      size={size}
-    />
+    <motion.div
+      className="relative rounded-full overflow-hidden shrink-0"
+      style={{ width: px, height: px }}
+      animate={{
+        scale: mood === "speaking" ? [1, 1.03, 1] : [1, 1.01, 1],
+        boxShadow: showGlow
+          ? [
+              `0 0 0px 0px ${glowColor}`,
+              `0 0 ${px * 0.15}px ${px * 0.06}px ${glowColor}`,
+              `0 0 0px 0px ${glowColor}`,
+            ]
+          : "none",
+      }}
+      transition={{
+        duration: mood === "speaking" ? 1.2 : 3,
+        repeat: Infinity,
+        ease: "easeInOut",
+      }}
+    >
+      <img
+        src={avatarUrl}
+        alt="AI Assistant"
+        className="w-full h-full object-cover object-top"
+        draggable={false}
+      />
+      {/* Mood overlay */}
+      {mood === "thinking" && (
+        <motion.div
+          className="absolute inset-0 bg-yellow-500/10"
+          animate={{ opacity: [0, 0.15, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        />
+      )}
+      {mood === "speaking" && (
+        <motion.div
+          className="absolute inset-0 border-2 border-primary/40 rounded-full"
+          animate={{ opacity: [0.3, 0.8, 0.3] }}
+          transition={{ duration: 1, repeat: Infinity }}
+        />
+      )}
+    </motion.div>
   );
 }
 
@@ -87,28 +190,30 @@ export function MiaMessage({
   className?: string;
   speakContent?: boolean;
 }) {
-  const miaRef = useRef<MiaDigitalHumanRef>(null);
+  const { agentName, voiceEnabled } = useMiaConfig();
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const hasSpoken = useRef(false);
 
   useEffect(() => {
-    if (speakContent && !hasSpoken.current && miaRef.current && content) {
+    if (speakContent && voiceEnabled && !hasSpoken.current && content) {
       hasSpoken.current = true;
       const summary = content.length > 250 ? content.substring(0, 250) + "..." : content;
-      setTimeout(() => miaRef.current?.speak(summary), 400);
+      setTimeout(() => {
+        setIsSpeaking(true);
+        speakText(summary, () => setIsSpeaking(false));
+      }, 400);
     }
-  }, [speakContent, content]);
+  }, [speakContent, content, voiceEnabled]);
+
+  const activeMood = isSpeaking ? "speaking" : isTyping ? "thinking" : mood;
 
   return (
     <div className={`flex items-start gap-3 ${className}`}>
       <div className="shrink-0 pt-1">
-        <MiaDigitalHuman
-          ref={miaRef}
-          mood={toDigitalMood(isTyping ? "thinking" : mood)}
-          size={avatarSize}
-        />
+        <MiaAvatar mood={activeMood} size={avatarSize} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-muted-foreground mb-1.5 ml-1">Mia</p>
+        <p className="text-xs font-medium text-muted-foreground mb-1.5 ml-1">{agentName}</p>
         <MiaSpeechBubble isTyping={isTyping}>
           {content && (
             <div className="text-sm leading-relaxed text-foreground prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
@@ -181,8 +286,9 @@ export function MiaGreeting({
   onVoiceInput?: (text: string) => void;
   speakOnMount?: boolean;
 }) {
-  const miaRef = useRef<MiaDigitalHumanRef>(null);
+  const { agentName, voiceEnabled } = useMiaConfig();
   const [displayGreeting, setDisplayGreeting] = useState("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const fullGreeting = greeting || getTimeGreeting(userName);
   const hasSpoken = useRef(false);
 
@@ -203,22 +309,27 @@ export function MiaGreeting({
 
   // Speak on mount
   useEffect(() => {
-    if (speakOnMount && !hasSpoken.current && miaRef.current) {
+    if (speakOnMount && voiceEnabled && !hasSpoken.current) {
       hasSpoken.current = true;
       const name = userName ? `, ${userName.split(" ")[0]}` : "";
       const text = subtitle ? `Hi${name}. ${subtitle}` : fullGreeting;
-      setTimeout(() => miaRef.current?.speak(text), 600);
+      setTimeout(() => {
+        setIsSpeaking(true);
+        speakText(text, () => setIsSpeaking(false));
+      }, 600);
     }
-  }, [speakOnMount, userName, subtitle, fullGreeting]);
+  }, [speakOnMount, userName, subtitle, fullGreeting, voiceEnabled]);
+
+  const activeMood = isSpeaking ? "speaking" : mood;
 
   return (
     <div className="flex items-start gap-5">
       <div className="shrink-0">
-        <MiaDigitalHuman ref={miaRef} mood={toDigitalMood(mood)} size="lg" />
+        <MiaAvatar mood={activeMood} size="lg" />
       </div>
       <div className="flex-1 min-w-0 pt-1">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-semibold text-primary uppercase tracking-wider">Mia</span>
+          <span className="text-xs font-semibold text-primary uppercase tracking-wider">{agentName}</span>
           <span className="text-[10px] text-muted-foreground">My Integrity Assistant</span>
         </div>
         <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">

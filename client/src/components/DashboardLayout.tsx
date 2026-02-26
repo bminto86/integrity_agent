@@ -77,6 +77,7 @@ const menuSections = [
     label: "System",
     items: [
       { icon: Settings2, label: "Data Connections", path: "/connections" },
+      { icon: Settings2, label: "Agent Settings", path: "/settings" },
     ],
   },
 ];

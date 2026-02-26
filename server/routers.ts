@@ -17,6 +17,21 @@ export const appRouter = router({
     }),
   }),
 
+  // ─── User Settings ──────────────────────────────────────────────────
+  settings: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      const settings = await db.getUserSettings(ctx.user.id);
+      return settings ?? { avatarId: "option-2", agentName: "Mia", voiceEnabled: true };
+    }),
+    update: protectedProcedure.input(z.object({
+      avatarId: z.string().optional(),
+      agentName: z.string().optional(),
+      voiceEnabled: z.boolean().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      return db.upsertUserSettings(ctx.user.id, input);
+    }),
+  }),
+
   // ─── Dashboard ───────────────────────────────────────────────────────
   dashboard: router({
     stats: protectedProcedure.query(async () => {
