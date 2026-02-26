@@ -21,10 +21,11 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
+import { MiaAvatar } from "@/components/Mia";
 import {
   LayoutDashboard, LogOut, PanelLeft, Building2, CheckSquare,
   FileText, Users, Mail, Calculator, BarChart3, Award, FileEdit,
-  MessageSquare, Bell, Shield,
+  MessageSquare, Bell, Settings2,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -72,6 +73,12 @@ const menuSections = [
       { icon: FileEdit, label: "Documents", path: "/documents" },
     ],
   },
+  {
+    label: "System",
+    items: [
+      { icon: Settings2, label: "Data Connections", path: "/connections" },
+    ],
+  },
 ];
 
 const allMenuItems = menuSections.flatMap(s => s.items);
@@ -105,14 +112,13 @@ export default function DashboardLayout({
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
           <div className="flex flex-col items-center gap-4">
-            <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Shield className="h-7 w-7 text-primary" />
-            </div>
+            <MiaAvatar mood="neutral" size="xl" />
             <h1 className="text-2xl font-semibold tracking-tight text-center text-foreground">
-              Integrity Ops Agent
+              Meet Mia
             </h1>
+            <p className="text-xs font-medium text-primary uppercase tracking-wider">My Integrity Assistant</p>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Sign in to access your operations management platform.
+              Your AI-powered operations partner for vendor management, team coordination, and operational intelligence.
             </p>
           </div>
           <Button
@@ -120,7 +126,7 @@ export default function DashboardLayout({
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"
           >
-            Sign in
+            Sign in to get started
           </Button>
         </div>
       </div>
@@ -196,11 +202,12 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
               {!isCollapsed && (
-                <div className="flex items-center gap-2 min-w-0">
-                  <Shield className="h-5 w-5 text-primary shrink-0" />
-                  <span className="font-semibold tracking-tight truncate text-sm">
-                    Integrity Ops
-                  </span>
+                <div className="flex items-center gap-2.5 min-w-0 cursor-pointer" onClick={() => setLocation("/")}>
+                  <MiaAvatar mood="neutral" size="sm" showGlow={false} />
+                  <div className="min-w-0">
+                    <span className="font-semibold tracking-tight text-sm block leading-tight">Mia</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Integrity Ops</span>
+                  </div>
                 </div>
               )}
             </div>

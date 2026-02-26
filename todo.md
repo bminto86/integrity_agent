@@ -16,3 +16,31 @@
 - [x] Alerts page with SLA breach and anomaly management
 - [x] Backend tRPC routers for all features
 - [x] Vitest tests for core functionality (54 tests passing)
+
+## Phase 2 — Conversational Agent Redesign
+
+- [x] AI persona component with animated avatar visualization
+- [x] Speech bubble / conversational UI pattern across all modules
+- [x] Conversational Home/Dashboard — agent greets user, proactively surfaces insights
+- [x] Data connection toggle infrastructure (enable/disable data sources)
+- [x] CSV/Excel import for bulk vendor metrics upload
+- [x] Automated SLA breach detection background job with auto-alerts
+- [x] Integrate conversational persona into all feature modules
+- [x] Tests for new features (57 tests passing)
+
+## Phase 2b — Voice Control
+
+- [x] Voice control: Build useVoiceInput hook using Web Speech API
+- [x] Voice control: Add voice input button to Mia component and all AI interaction dialogs
+- [x] Voice control: Visual feedback (pulsing mic, waveform) during recording
+
+## Phase 3 — Digital Human Mia
+
+- [x] Animated digital human Mia: Canvas-based face with idle animations (blinking, breathing, micro-movements)
+- [x] Text-to-speech voice: Browser-native Web Speech API for Mia to speak responses aloud
+- [x] Lip-sync animation: Mouth shapes driven by TTS boundary events for realistic speech
+- [x] Expression states: Happy, thinking, concerned, speaking — with smooth transitions
+- [x] Ambient idle animations: Head sway, eye movement, breathing for lifelike presence
+- [x] Replace static avatar with animated Mia across all pages
+- [x] Alerts page: Add Mia persona integration
+- [x] VendorDetail page: Add Mia persona integration

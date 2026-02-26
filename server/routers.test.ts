@@ -534,6 +534,38 @@ describe("ai", () => {
   });
 });
 
+// ─── Bulk Import ───────────────────────────────────────────────────────────
+describe("metrics.bulkImport", () => {
+  it("imports multiple metrics", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.metrics.bulkImport({
+      metrics: [
+        { vendorId: 1, date: "2026-01-15", accuracyRate: "95.5", throughput: 120 },
+        { vendorId: 2, date: "2026-01-15", qualityScore: "88" },
+      ],
+    });
+    expect(result).toHaveProperty("count");
+    expect(result.count).toBe(2);
+  });
+
+  it("handles empty import", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.metrics.bulkImport({ metrics: [] });
+    expect(result.count).toBe(0);
+  });
+});
+
+// ─── SLA Breach Detection ──────────────────────────────────────────────────
+describe("sla.checkBreaches", () => {
+  it("detects SLA breaches and creates alerts", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.sla.checkBreaches();
+    expect(result).toHaveProperty("breachCount");
+    expect(result).toHaveProperty("breaches");
+    expect(Array.isArray(result.breaches)).toBe(true);
+  });
+});
+
 // ─── Auth Protection ────────────────────────────────────────────────────────
 describe("auth protection", () => {
   it("rejects unauthenticated access to vendors.list", async () => {

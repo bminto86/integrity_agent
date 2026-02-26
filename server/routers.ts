@@ -99,6 +99,84 @@ export const appRouter = router({
     getAll: protectedProcedure.query(async () => {
       return db.getAllMetrics();
     }),
+    bulkImport: protectedProcedure.input(z.object({
+      metrics: z.array(z.object({
+        vendorId: z.number(),
+        date: z.string(),
+        accuracyRate: z.string().optional(),
+        throughput: z.number().optional(),
+        responseTime: z.string().optional(),
+        qualityScore: z.string().optional(),
+      })),
+    })).mutation(async ({ input }) => {
+      let count = 0;
+      for (const m of input.metrics) {
+        try {
+          await db.addVendorMetric({
+            vendorId: m.vendorId,
+            date: new Date(m.date),
+            accuracyRate: m.accuracyRate ? parseFloat(m.accuracyRate) : undefined,
+            throughput: m.throughput,
+            responseTimeHours: m.responseTime ? parseFloat(m.responseTime) : undefined,
+            qualityScore: m.qualityScore ? parseFloat(m.qualityScore) : undefined,
+          });
+          count++;
+        } catch (e) {
+          console.warn("Skipped metric row:", e);
+        }
+      }
+      return { count };
+    }),
+  }),
+
+  // ─── SLA Breach Detection ───────────────────────────────────────────
+  sla: router({
+    checkBreaches: protectedProcedure.mutation(async () => {
+      const vendorsList = await db.listVendors();
+      const breaches: Array<{ vendorId: number; vendorName: string; metric: string; actual: number; target: number }> = [];
+
+      for (const vendor of vendorsList) {
+        if (vendor.contractStatus !== "active") continue;
+        const metrics = await db.getVendorMetrics(vendor.id);
+        if (metrics.length === 0) continue;
+        const latest = metrics[metrics.length - 1];
+
+        if (vendor.slaAccuracyTarget && latest.accuracyRate) {
+          const target = parseFloat(String(vendor.slaAccuracyTarget));
+          const actual = parseFloat(String(latest.accuracyRate));
+          if (actual < target / 100) {
+            breaches.push({ vendorId: vendor.id, vendorName: vendor.name, metric: "Accuracy Rate", actual: actual * 100, target });
+          }
+        }
+        if (vendor.slaThroughputTarget && latest.throughput) {
+          const target = Number(vendor.slaThroughputTarget);
+          const actual = Number(latest.throughput);
+          if (actual < target) {
+            breaches.push({ vendorId: vendor.id, vendorName: vendor.name, metric: "Throughput", actual, target });
+          }
+        }
+        if (vendor.slaResponseTimeTarget && latest.responseTimeHours) {
+          const target = parseFloat(String(vendor.slaResponseTimeTarget));
+          const actual = parseFloat(String(latest.responseTimeHours));
+          if (actual > target) {
+            breaches.push({ vendorId: vendor.id, vendorName: vendor.name, metric: "Response Time", actual, target });
+          }
+        }
+      }
+
+      // Create alerts for breaches
+      for (const breach of breaches) {
+        await db.createAlert({
+          vendorId: breach.vendorId,
+          type: "sla_breach",
+          severity: "high",
+          title: `SLA Breach: ${breach.vendorName} — ${breach.metric}`,
+          description: `${breach.metric} is ${breach.actual.toFixed(2)} vs target ${breach.target}. Immediate attention required.`,
+        });
+      }
+
+      return { breachCount: breaches.length, breaches };
+    }),
   }),
 
   // ─── Alerts ──────────────────────────────────────────────────────────

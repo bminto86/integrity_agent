@@ -18,6 +18,7 @@ import Scorecards from "./pages/Scorecards";
 import Documents from "./pages/Documents";
 import MeetingSummarizer from "./pages/MeetingSummarizer";
 import Alerts from "./pages/Alerts";
+import Connections from "./pages/Connections";
 
 function Router() {
   return (
@@ -36,6 +37,7 @@ function Router() {
         <Route path="/documents" component={Documents} />
         <Route path="/summarizer" component={MeetingSummarizer} />
         <Route path="/alerts" component={Alerts} />
+        <Route path="/connections" component={Connections} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

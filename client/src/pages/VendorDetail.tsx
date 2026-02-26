@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Plus, Trash2, Edit } from "lucide-react";
+import { MiaAvatar } from "@/components/Mia";
+import { ArrowLeft, Plus, Trash2, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
@@ -70,6 +71,27 @@ export default function VendorDetail() {
     [metrics.data]
   );
 
+  // Compute Mia's insight about this vendor
+  const miaInsight = useMemo(() => {
+    if (!vendor.data || !metrics.data?.length) return null;
+    const v = vendor.data;
+    const latest = metrics.data[metrics.data.length - 1];
+    const issues: string[] = [];
+    if (latest.accuracyRate !== null && v.slaAccuracyTarget && latest.accuracyRate < v.slaAccuracyTarget) {
+      issues.push(`accuracy is ${latest.accuracyRate.toFixed(1)}% (target: ${v.slaAccuracyTarget}%)`);
+    }
+    if (latest.throughput !== null && v.slaThroughputTarget && latest.throughput < v.slaThroughputTarget) {
+      issues.push(`throughput is ${latest.throughput.toFixed(0)}/hr (target: ${v.slaThroughputTarget}/hr)`);
+    }
+    if (latest.responseTimeHours !== null && v.slaResponseTimeTarget && latest.responseTimeHours > v.slaResponseTimeTarget) {
+      issues.push(`response time is ${latest.responseTimeHours.toFixed(1)}hrs (target: ${v.slaResponseTimeTarget}hrs)`);
+    }
+    if (issues.length > 0) {
+      return { mood: "concerned" as const, text: `I've noticed some SLA concerns: ${issues.join(", ")}. You may want to address these in your next vendor review.` };
+    }
+    return { mood: "happy" as const, text: `${v.name} is performing well against all SLA targets. Keep up the good partnership.` };
+  }, [vendor.data, metrics.data]);
+
   if (vendor.isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64" /></div>;
   if (!vendor.data) return <div className="text-center py-12 text-muted-foreground">Vendor not found</div>;
 
@@ -77,6 +99,7 @@ export default function VendorDetail() {
 
   return (
     <div className="space-y-6">
+      {/* ─── Header ───────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => setLocation("/vendors")}><ArrowLeft className="h-4 w-4" /></Button>
         <div className="flex-1">
@@ -89,13 +112,28 @@ export default function VendorDetail() {
         </Button>
       </div>
 
-      {/* SLA Targets */}
+      {/* ─── Mia Insight ──────────────────────────────────────────── */}
+      {miaInsight && (
+        <Card className={`border-border/50 ${miaInsight.mood === "concerned" ? "bg-orange-500/5 border-orange-500/20" : "bg-primary/5 border-primary/20"}`}>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <MiaAvatar mood={miaInsight.mood} size="md" />
+              <div className="flex-1 min-w-0 pt-1">
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Mia's Assessment</p>
+                <p className="text-sm text-foreground leading-relaxed">{miaInsight.text}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ─── SLA Targets ──────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Headcount", value: v.headcount || 0 },
-          { label: "Accuracy Target", value: `${v.slaAccuracyTarget}%` },
-          { label: "Throughput Target", value: `${v.slaThroughputTarget}/hr` },
-          { label: "Response Time Target", value: `${v.slaResponseTimeTarget}hrs` },
+          { label: "Headcount", value: v.headcount || 0, icon: null },
+          { label: "Accuracy Target", value: `${v.slaAccuracyTarget}%`, icon: null },
+          { label: "Throughput Target", value: `${v.slaThroughputTarget}/hr`, icon: null },
+          { label: "Response Time Target", value: `${v.slaResponseTimeTarget}hrs`, icon: null },
         ].map(item => (
           <Card key={item.label} className="border-border/50">
             <CardContent className="p-4">
@@ -106,6 +144,7 @@ export default function VendorDetail() {
         ))}
       </div>
 
+      {/* ─── Tabs ─────────────────────────────────────────────────── */}
       <Tabs defaultValue="charts">
         <div className="flex items-center justify-between">
           <TabsList>
@@ -148,7 +187,13 @@ export default function VendorDetail() {
 
         <TabsContent value="charts" className="mt-4">
           {!chartData.length ? (
-            <Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground text-sm">No metrics data yet. Add your first metric to see charts.</CardContent></Card>
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <MiaAvatar mood="neutral" size="lg" />
+                <p className="text-sm text-muted-foreground mt-4">No metrics data yet. Add your first metric to see charts.</p>
+                <p className="text-xs text-muted-foreground mt-1">I'll start generating insights once you have data.</p>
+              </CardContent>
+            </Card>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card className="border-border/50">
