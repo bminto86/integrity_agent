@@ -114,3 +114,13 @@
 - [x] Frontend: Add response style controls to Agent Library create/edit dialog for custom agents
 - [x] Optimized browser TTS with smart voice selection (Google/neural voices prioritized)
 - [x] Tests passing (87 tests)
+
+## Phase 11 — Persistent Floating Mia Chat
+
+- [x] Build MiaFloatingChat component with animated FAB button and slide-out chat panel
+- [x] Chat panel: message history, text input, voice input, TTS toggle, Mia avatar
+- [x] Wire to existing mia.chat tRPC procedure for AI responses
+- [x] Integrate into DashboardLayout so it appears on every page
+- [x] Persist chat history across page navigation within session
+- [x] Smooth open/close animations with framer-motion
+- [x] Tests verified (87 passing)

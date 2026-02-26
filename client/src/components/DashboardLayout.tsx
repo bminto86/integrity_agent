@@ -23,6 +23,7 @@ import {
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { MiaAvatar } from "@/components/Mia";
+import { MiaFloatingChat } from "@/components/MiaFloatingChat";
 import {
   LayoutDashboard, LogOut, PanelLeft, Building2, CheckSquare,
   FileText, Users, Mail, Calculator, BarChart3, Award, FileEdit,
@@ -148,6 +149,7 @@ export default function DashboardLayout({
       <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>
         {children}
       </DashboardLayoutContent>
+      <MiaFloatingChat />
     </SidebarProvider>
   );
 }
