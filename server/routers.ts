@@ -6,6 +6,7 @@ import { z } from "zod";
 import { invokeLLM } from "./_core/llm";
 import * as db from "./db";
 import { notifyOwner } from "./_core/notification";
+import { escalationRouter } from "./routers/escalation";
 
 export const appRouter = router({
   system: systemRouter,
@@ -873,6 +874,9 @@ Context: ${input.context || "Standard integrity operations"}` },
       return { success: true };
     }),
   }),
+
+  // ─── Escalation Orchestration Engine ─────────────────────────────
+  escalation: escalationRouter,
 
   // ─── Mia Smart Chat (main page widget) ─────────────────────────────
   mia: router({

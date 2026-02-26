@@ -655,3 +655,266 @@ export async function clearAgentConversation(agentId: number, userId: number) {
   if (!db) return;
   await db.delete(agentMessages).where(and(eq(agentMessages.agentId, agentId), eq(agentMessages.userId, userId)));
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ESCALATION ORCHESTRATION ENGINE — Database Helpers
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import {
+  escalationRules, InsertEscalationRule,
+  escalationCases, InsertEscalationCase,
+  escalationTimeline, InsertEscalationTimelineEntry,
+  vendorPortalTokens, InsertVendorPortalToken,
+  vendorResponses, InsertVendorResponse,
+  escalationAuditLog, InsertEscalationAuditLogEntry,
+  vendorAiAgents, InsertVendorAiAgent,
+} from "../drizzle/schema";
+
+// ─── Escalation Rules ──────────────────────────────────────────────────────
+
+export async function listEscalationRules(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(escalationRules)
+    .where(eq(escalationRules.createdBy, userId))
+    .orderBy(desc(escalationRules.updatedAt));
+}
+
+export async function getEscalationRule(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(escalationRules).where(eq(escalationRules.id, id)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function createEscalationRule(data: InsertEscalationRule) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(escalationRules).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function updateEscalationRule(id: number, data: Partial<InsertEscalationRule>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(escalationRules).set(data).where(eq(escalationRules.id, id));
+}
+
+export async function deleteEscalationRule(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(escalationRules).where(eq(escalationRules.id, id));
+}
+
+// ─── Escalation Cases ──────────────────────────────────────────────────────
+
+export async function listEscalationCases(opts?: { vendorId?: number; status?: string; limit?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (opts?.vendorId) conditions.push(eq(escalationCases.vendorId, opts.vendorId));
+  if (opts?.status) conditions.push(eq(escalationCases.status, opts.status as any));
+  let query = db.select().from(escalationCases)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(escalationCases.createdAt));
+  if (opts?.limit) query = query.limit(opts.limit) as typeof query;
+  return query;
+}
+
+export async function getEscalationCase(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(escalationCases).where(eq(escalationCases.id, id)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function getEscalationCaseByCaseRef(caseRef: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(escalationCases).where(eq(escalationCases.caseRef, caseRef)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function createEscalationCase(data: InsertEscalationCase) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(escalationCases).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function updateEscalationCase(id: number, data: Partial<InsertEscalationCase>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(escalationCases).set(data).where(eq(escalationCases.id, id));
+}
+
+export async function getNextCaseRef() {
+  const db = await getDb();
+  if (!db) return "ESC-2026-0001";
+  const result = await db.select({ count: sql<number>`count(*)` }).from(escalationCases);
+  const num = (result[0]?.count ?? 0) + 1;
+  const year = new Date().getFullYear();
+  return `ESC-${year}-${String(num).padStart(4, "0")}`;
+}
+
+// ─── Escalation Timeline ───────────────────────────────────────────────────
+
+export async function listEscalationTimeline(caseId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(escalationTimeline)
+    .where(eq(escalationTimeline.caseId, caseId))
+    .orderBy(asc(escalationTimeline.createdAt));
+}
+
+export async function addTimelineEntry(data: InsertEscalationTimelineEntry) {
+  const db = await getDb();
+  if (!db) return null;
+  return db.insert(escalationTimeline).values(data);
+}
+
+// ─── Vendor Portal Tokens ──────────────────────────────────────────────────
+
+export async function listVendorPortalTokens(vendorId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  if (vendorId) {
+    return db.select().from(vendorPortalTokens)
+      .where(eq(vendorPortalTokens.vendorId, vendorId))
+      .orderBy(desc(vendorPortalTokens.createdAt));
+  }
+  return db.select().from(vendorPortalTokens).orderBy(desc(vendorPortalTokens.createdAt));
+}
+
+export async function getVendorPortalTokenByHash(tokenHash: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(vendorPortalTokens)
+    .where(eq(vendorPortalTokens.tokenHash, tokenHash))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function createVendorPortalToken(data: InsertVendorPortalToken) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(vendorPortalTokens).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function revokeVendorPortalToken(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(vendorPortalTokens).set({ isRevoked: true }).where(eq(vendorPortalTokens.id, id));
+}
+
+export async function recordTokenAccess(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(vendorPortalTokens).set({
+    lastAccessedAt: new Date(),
+    accessCount: sql`${vendorPortalTokens.accessCount} + 1`,
+  }).where(eq(vendorPortalTokens.id, id));
+}
+
+// ─── Vendor Responses ──────────────────────────────────────────────────────
+
+export async function listVendorResponses(caseId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(vendorResponses)
+    .where(eq(vendorResponses.caseId, caseId))
+    .orderBy(desc(vendorResponses.createdAt));
+}
+
+export async function createVendorResponse(data: InsertVendorResponse) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(vendorResponses).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function updateVendorResponse(id: number, data: Partial<InsertVendorResponse>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(vendorResponses).set(data).where(eq(vendorResponses.id, id));
+}
+
+// ─── Escalation Audit Log ──────────────────────────────────────────────────
+
+export async function addAuditLogEntry(data: InsertEscalationAuditLogEntry) {
+  const db = await getDb();
+  if (!db) return null;
+  return db.insert(escalationAuditLog).values(data);
+}
+
+export async function listAuditLog(opts?: { vendorId?: number; tokenId?: number; caseId?: number; securityOnly?: boolean; limit?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (opts?.vendorId) conditions.push(eq(escalationAuditLog.vendorId, opts.vendorId));
+  if (opts?.tokenId) conditions.push(eq(escalationAuditLog.tokenId, opts.tokenId));
+  if (opts?.caseId) conditions.push(eq(escalationAuditLog.caseId, opts.caseId));
+  if (opts?.securityOnly) conditions.push(eq(escalationAuditLog.isSecurityEvent, true));
+  let query = db.select().from(escalationAuditLog)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(escalationAuditLog.createdAt));
+  if (opts?.limit) query = query.limit(opts.limit) as typeof query;
+  return query;
+}
+
+// ─── Vendor AI Agents ──────────────────────────────────────────────────────
+
+export async function listVendorAiAgents(vendorId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(vendorAiAgents)
+    .where(eq(vendorAiAgents.vendorId, vendorId))
+    .orderBy(desc(vendorAiAgents.updatedAt));
+}
+
+export async function getVendorAiAgent(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(vendorAiAgents).where(eq(vendorAiAgents.id, id)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function createVendorAiAgent(data: InsertVendorAiAgent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(vendorAiAgents).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function updateVendorAiAgent(id: number, data: Partial<InsertVendorAiAgent>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(vendorAiAgents).set(data).where(eq(vendorAiAgents.id, id));
+}
+
+export async function deleteVendorAiAgent(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(vendorAiAgents).where(eq(vendorAiAgents.id, id));
+}
+
+// ─── Escalation Stats ──────────────────────────────────────────────────────
+
+export async function getEscalationStats() {
+  const db = await getDb();
+  if (!db) return { total: 0, open: 0, awaitingVendor: 0, resolved: 0, avgResolutionHours: 0 };
+  const [totalResult] = await db.select({ count: sql<number>`count(*)` }).from(escalationCases);
+  const [openResult] = await db.select({ count: sql<number>`count(*)` }).from(escalationCases)
+    .where(sql`${escalationCases.status} NOT IN ('resolved', 'closed')`);
+  const [awaitingResult] = await db.select({ count: sql<number>`count(*)` }).from(escalationCases)
+    .where(eq(escalationCases.status, "awaiting_vendor"));
+  const [resolvedResult] = await db.select({ count: sql<number>`count(*)` }).from(escalationCases)
+    .where(sql`${escalationCases.status} IN ('resolved', 'closed')`);
+  return {
+    total: totalResult?.count ?? 0,
+    open: openResult?.count ?? 0,
+    awaitingVendor: awaitingResult?.count ?? 0,
+    resolved: resolvedResult?.count ?? 0,
+  };
+}

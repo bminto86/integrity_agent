@@ -23,6 +23,9 @@ import Connections from "./pages/Connections";
 import AgentSettings from "./pages/AgentSettings";
 import AgentLibrary from "./pages/AgentLibrary";
 import AgentChat from "./pages/AgentChat";
+import Escalations from "./pages/Escalations";
+import EscalationDetail from "./pages/EscalationDetail";
+import VendorPortal from "./pages/VendorPortal";
 
 function Router() {
   return (
@@ -44,6 +47,8 @@ function Router() {
         <Route path="/connections" component={Connections} />
         <Route path="/agents" component={AgentLibrary} />
         <Route path="/agents/:id/chat" component={AgentChat} />
+        <Route path="/escalations" component={Escalations} />
+        <Route path="/escalations/:id" component={EscalationDetail} />
         <Route path="/settings" component={AgentSettings} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
@@ -59,7 +64,14 @@ function App() {
         <AvatarProvider>
           <TooltipProvider>
             <Toaster />
-            <Router />
+            <Switch>
+              <Route path="/vendor-portal">
+                <VendorPortal />
+              </Route>
+              <Route>
+                <Router />
+              </Route>
+            </Switch>
           </TooltipProvider>
         </AvatarProvider>
       </ThemeProvider>

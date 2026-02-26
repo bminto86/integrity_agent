@@ -304,3 +304,202 @@ export const agentMessages = mysqlTable("agent_messages", {
 
 export type AgentMessage = typeof agentMessages.$inferSelect;
 export type InsertAgentMessage = typeof agentMessages.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ESCALATION ORCHESTRATION ENGINE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Escalation Rules (multi-condition trigger definitions) ─────────────────
+export const escalationRules = mysqlTable("escalation_rules", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  /** Whether conditions are combined with AND or OR */
+  conditionLogic: mysqlEnum("conditionLogic", ["and", "or"]).default("and").notNull(),
+  /** JSON array of condition objects: [{metric, operator, threshold}] */
+  conditions: json("conditions").notNull(),
+  /** Severity assigned when this rule triggers */
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).default("high").notNull(),
+  /** Hours before auto-escalation if no vendor response */
+  responseDeadlineHours: int("responseDeadlineHours").default(48).notNull(),
+  /** Hours between follow-up reminders */
+  followUpIntervalHours: int("followUpIntervalHours").default(24).notNull(),
+  /** Max follow-ups before auto-escalating severity */
+  maxFollowUps: int("maxFollowUps").default(3).notNull(),
+  /** Optional cooldown in hours to prevent duplicate triggers */
+  cooldownHours: int("cooldownHours").default(24).notNull(),
+  /** Whether this rule is active */
+  isActive: boolean("isActive").default(true).notNull(),
+  /** Optional: only apply to specific vendor IDs (JSON array), null = all vendors */
+  vendorScope: json("vendorScope"),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EscalationRule = typeof escalationRules.$inferSelect;
+export type InsertEscalationRule = typeof escalationRules.$inferInsert;
+
+// ─── Escalation Cases (active escalation instances) ─────────────────────────
+export const escalationCases = mysqlTable("escalation_cases", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Reference to the rule that triggered this case */
+  ruleId: int("ruleId"),
+  vendorId: int("vendorId").notNull(),
+  /** Human-readable case reference e.g. ESC-2026-0042 */
+  caseRef: varchar("caseRef", { length: 32 }).notNull().unique(),
+  title: varchar("title", { length: 500 }).notNull(),
+  description: text("description"),
+  /** Current severity (may escalate over time) */
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).default("high").notNull(),
+  status: mysqlEnum("status", [
+    "open", "awaiting_vendor", "vendor_responded", "under_review",
+    "resolved", "closed", "auto_escalated"
+  ]).default("open").notNull(),
+  /** AI-generated inquiry sent to vendor */
+  inquiryContent: text("inquiryContent"),
+  /** JSON snapshot of the metric breach data at trigger time */
+  triggerData: json("triggerData"),
+  /** Deadline for vendor response */
+  responseDeadline: timestamp("responseDeadline"),
+  /** Number of follow-ups sent */
+  followUpCount: int("followUpCount").default(0).notNull(),
+  /** Mia's AI analysis of the case (updated as responses come in) */
+  miaAnalysis: text("miaAnalysis"),
+  /** Resolution notes */
+  resolutionNotes: text("resolutionNotes"),
+  resolvedAt: timestamp("resolvedAt"),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EscalationCase = typeof escalationCases.$inferSelect;
+export type InsertEscalationCase = typeof escalationCases.$inferInsert;
+
+// ─── Escalation Timeline (full audit trail per case) ────────────────────────
+export const escalationTimeline = mysqlTable("escalation_timeline", {
+  id: int("id").autoincrement().primaryKey(),
+  caseId: int("caseId").notNull(),
+  /** Event types for the timeline */
+  eventType: mysqlEnum("eventType", [
+    "case_created", "inquiry_sent", "vendor_viewed", "vendor_responded",
+    "follow_up_sent", "severity_escalated", "mia_analysis", "status_changed",
+    "resolution_verified", "note_added", "token_accessed"
+  ]).notNull(),
+  /** Who triggered this event: system, user, vendor, mia */
+  actor: mysqlEnum("actor", ["system", "user", "vendor", "mia"]).default("system").notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  content: text("content"),
+  /** Optional metadata JSON */
+  metadata: json("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type EscalationTimelineEntry = typeof escalationTimeline.$inferSelect;
+export type InsertEscalationTimelineEntry = typeof escalationTimeline.$inferInsert;
+
+// ─── Vendor Portal Tokens (secure access management) ────────────────────────
+export const vendorPortalTokens = mysqlTable("vendor_portal_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  vendorId: int("vendorId").notNull(),
+  /** Cryptographically secure token (SHA-256 hash stored, raw sent to vendor) */
+  tokenHash: varchar("tokenHash", { length: 128 }).notNull().unique(),
+  /** Short display identifier for the token (last 8 chars) */
+  tokenSuffix: varchar("tokenSuffix", { length: 8 }).notNull(),
+  /** Human-readable label for this token */
+  label: varchar("label", { length: 255 }),
+  /** Scoped to specific case IDs (JSON array), null = all vendor's cases */
+  caseScope: json("caseScope"),
+  /** Optional IP allowlist (JSON array of CIDR strings), null = no restriction */
+  ipAllowlist: json("ipAllowlist"),
+  /** Token expiry date */
+  expiresAt: timestamp("expiresAt").notNull(),
+  /** Whether this token has been manually revoked */
+  isRevoked: boolean("isRevoked").default(false).notNull(),
+  /** Last time this token was used to access the portal */
+  lastAccessedAt: timestamp("lastAccessedAt"),
+  /** Total number of times this token was used */
+  accessCount: int("accessCount").default(0).notNull(),
+  /** Who created this token */
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type VendorPortalToken = typeof vendorPortalTokens.$inferSelect;
+export type InsertVendorPortalToken = typeof vendorPortalTokens.$inferInsert;
+
+// ─── Vendor Responses (structured responses from vendor portal) ─────────────
+export const vendorResponses = mysqlTable("vendor_responses", {
+  id: int("id").autoincrement().primaryKey(),
+  caseId: int("caseId").notNull(),
+  vendorId: int("vendorId").notNull(),
+  /** Which token was used to submit this response */
+  tokenId: int("tokenId"),
+  /** Structured response fields */
+  rootCause: text("rootCause"),
+  remediationPlan: text("remediationPlan"),
+  timeline: varchar("timeline", { length: 255 }),
+  preventionMeasures: text("preventionMeasures"),
+  /** Additional free-form notes */
+  additionalNotes: text("additionalNotes"),
+  /** Evidence/attachment URLs (JSON array) */
+  evidenceUrls: json("evidenceUrls"),
+  /** Whether this was AI-assisted (vendor used their AI agent) */
+  isAiAssisted: boolean("isAiAssisted").default(false).notNull(),
+  /** Mia's analysis of this specific response */
+  miaResponseAnalysis: text("miaResponseAnalysis"),
+  /** IP address of the submitter (for audit) */
+  submitterIp: varchar("submitterIp", { length: 45 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type VendorResponse = typeof vendorResponses.$inferSelect;
+export type InsertVendorResponse = typeof vendorResponses.$inferInsert;
+
+// ─── Escalation Audit Log (security-focused event log) ──────────────────────
+export const escalationAuditLog = mysqlTable("escalation_audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Event category */
+  eventCategory: mysqlEnum("eventCategory", [
+    "token_created", "token_revoked", "token_expired", "token_accessed",
+    "portal_accessed", "response_submitted", "ip_blocked",
+    "rate_limited", "invalid_token", "case_exported"
+  ]).notNull(),
+  /** Related entity IDs */
+  vendorId: int("vendorId"),
+  tokenId: int("tokenId"),
+  caseId: int("caseId"),
+  /** IP address of the request */
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  /** User agent string */
+  userAgent: text("userAgent"),
+  /** Additional details */
+  details: text("details"),
+  /** Whether this was a security-relevant event (failed access, blocked IP, etc.) */
+  isSecurityEvent: boolean("isSecurityEvent").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type EscalationAuditLogEntry = typeof escalationAuditLog.$inferSelect;
+export type InsertEscalationAuditLogEntry = typeof escalationAuditLog.$inferInsert;
+
+// ─── Vendor AI Agents (vendor-side response assistants) ─────────────────────
+export const vendorAiAgents = mysqlTable("vendor_ai_agents", {
+  id: int("id").autoincrement().primaryKey(),
+  vendorId: int("vendorId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  /** System prompt / knowledge base for this vendor's AI agent */
+  systemPrompt: text("systemPrompt").notNull(),
+  /** Known issues and standard remediation playbook (fed to AI) */
+  knowledgeBase: text("knowledgeBase"),
+  /** Whether this agent is active */
+  isActive: boolean("isActive").default(true).notNull(),
+  /** Token required to manage this agent */
+  managedByTokenId: int("managedByTokenId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VendorAiAgent = typeof vendorAiAgents.$inferSelect;
+export type InsertVendorAiAgent = typeof vendorAiAgents.$inferInsert;

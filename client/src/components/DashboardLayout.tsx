@@ -27,7 +27,7 @@ import { MiaFloatingChat } from "@/components/MiaFloatingChat";
 import {
   LayoutDashboard, LogOut, PanelLeft, Building2, CheckSquare,
   FileText, Users, Mail, Calculator, BarChart3, Award, FileEdit,
-  MessageSquare, Bell, Settings2, Bot,
+  MessageSquare, Bell, Settings2, Bot, AlertTriangle,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -51,6 +51,7 @@ const menuSections = [
       { icon: Building2, label: "Vendors", path: "/vendors" },
       { icon: Award, label: "Scorecards", path: "/scorecards" },
       { icon: BarChart3, label: "Quality Analytics", path: "/quality" },
+      { icon: AlertTriangle, label: "Escalations", path: "/escalations" },
     ],
   },
   {

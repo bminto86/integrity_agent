@@ -133,3 +133,43 @@
 - [x] Store preferred voice in localStorage with auto-restore
 - [x] Clean markdown from text before speaking (strip bold, headers, links, code blocks)
 - [x] Tests verified (87 passing)
+
+## Phase 13 — Escalation Orchestration Engine
+
+### Security Model
+- [x] Vendor portal tokens: cryptographically secure, time-limited, per-vendor unique tokens
+- [x] Token scoping: each token only grants access to that vendor's own escalations (zero cross-vendor visibility)
+- [x] IP allowlisting: optional per-vendor IP restrictions for portal access
+- [x] Token expiry & rotation: configurable expiry (default 90 days), manual revoke, auto-rotation
+- [x] Rate limiting: prevent brute-force token guessing and API abuse
+- [x] Audit log: every vendor portal access, response submission, and token event is logged
+- [x] Data isolation: vendor responses stored separately, no access to internal metrics or other vendor data
+- [x] CORS restrictions: vendor portal endpoints locked to specific origins
+- [x] Future-ready: schema designed for SSO/SAML integration with Meta identity providers
+
+### Escalation Rules Engine
+- [x] Database: escalation_rules table with multi-condition trigger support (AND/OR logic)
+- [x] Database: escalation_cases table for case lifecycle tracking
+- [x] Database: vendor_portal_tokens table for secure access management
+- [x] Database: vendor_responses table for structured response capture
+- [x] Database: escalation_audit_log table for security audit trail
+- [x] Backend: Rule evaluation engine that checks metrics against trigger conditions
+- [x] Backend: Case creation with auto-generated Mia inquiry using AI
+- [x] Backend: Severity escalation on non-response (configurable timeframes)
+- [x] Backend: Cooldown periods to prevent alert fatigue
+
+### Vendor Portal
+- [x] Public vendor portal pages with token-based authentication (no login required)
+- [x] Vendor sees only their escalations with sanitised context (metric breach, timeframe, questions)
+- [x] Structured response form: root cause, remediation plan, timeline, evidence upload
+- [x] Auto-follow-up on non-response with severity increase
+- [x] Vendor-side AI agent builder (simplified Agent Library scoped to escalation context)
+
+### Case Management & Mia Analysis
+- [x] Frontend: Escalation rules builder with multi-condition UI
+- [x] Frontend: Case management dashboard with timeline view
+- [x] Frontend: Vendor portal management (token generation, revocation, IP allowlisting)
+- [x] Mia auto-analysis of vendor responses (completeness, quality, pattern matching)
+- [x] Resolution verification: check if metrics recovered post-remediation
+- [x] Historical pattern detection across escalations
+- [x] Tests for escalation engine, vendor portal security, and case management (108 tests passing)
