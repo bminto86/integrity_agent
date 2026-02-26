@@ -26,7 +26,7 @@ import { MiaAvatar } from "@/components/Mia";
 import {
   LayoutDashboard, LogOut, PanelLeft, Building2, CheckSquare,
   FileText, Users, Mail, Calculator, BarChart3, Award, FileEdit,
-  MessageSquare, Bell, Settings2,
+  MessageSquare, Bell, Settings2, Bot,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -40,7 +40,7 @@ const menuSections = [
   {
     label: "Overview",
     items: [
-      { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+      { icon: LayoutDashboard, label: "Main", path: "/" },
       { icon: Bell, label: "Alerts", path: "/alerts" },
     ],
   },
@@ -72,6 +72,12 @@ const menuSections = [
     label: "Knowledge",
     items: [
       { icon: FileEdit, label: "Documents", path: "/documents" },
+    ],
+  },
+  {
+    label: "Agents",
+    items: [
+      { icon: Bot, label: "Agent Library", path: "/agents" },
     ],
   },
   {

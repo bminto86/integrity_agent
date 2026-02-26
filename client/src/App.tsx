@@ -21,6 +21,8 @@ import MeetingSummarizer from "./pages/MeetingSummarizer";
 import Alerts from "./pages/Alerts";
 import Connections from "./pages/Connections";
 import AgentSettings from "./pages/AgentSettings";
+import AgentLibrary from "./pages/AgentLibrary";
+import AgentChat from "./pages/AgentChat";
 
 function Router() {
   return (
@@ -40,6 +42,8 @@ function Router() {
         <Route path="/summarizer" component={MeetingSummarizer} />
         <Route path="/alerts" component={Alerts} />
         <Route path="/connections" component={Connections} />
+        <Route path="/agents" component={AgentLibrary} />
+        <Route path="/agents/:id/chat" component={AgentChat} />
         <Route path="/settings" component={AgentSettings} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />

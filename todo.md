@@ -73,3 +73,34 @@
 - [x] Frontend: Real-time polling for new notifications (30s interval)
 - [x] Frontend: Mia proactive toast alerts for high-severity notifications
 - [x] Tests for notification system (74 tests passing)
+
+## Phase 7 — Custom Agent Library
+
+- [x] Viability check: confirmed DB, LLM, and storage all support custom agents
+- [x] Database: Add custom_agents table (name, system prompt, avatar, personality, expertise, etc.)
+- [x] Database: Add agent_conversations table for chat history per agent
+- [x] Backend: CRUD tRPC router for agents (create, list, get, update, delete)
+- [x] Backend: Agent chat procedure that invokes LLM with the agent's custom system prompt
+- [x] Frontend: Agent Library page with grid/list of custom agents
+- [x] Frontend: Create/Edit agent dialog with name, prompt, expertise, personality, avatar selection
+- [x] Frontend: Agent avatar settings (reuse existing 6 avatars + allow per-agent selection)
+- [x] Frontend: Delete agent with confirmation
+- [x] Frontend: Agent chat interface for conversing with a specific agent
+- [x] Frontend: Agent detail view showing config and conversation history
+- [x] Tests for agent library CRUD and chat (87 tests passing)
+
+## Phase 8 — Smart Mia Chat Widget & UI Refinements
+
+- [x] Rename "Dashboard" to "Main" in sidebar navigation
+- [x] Add "Agent Library" nav item to sidebar
+- [x] Build backend: Mia smart chat procedure that pulls operational context (vendors, metrics, tasks, alerts) and answers any question via LLM
+- [x] Build frontend: Smart chat input in the top Mia greeting widget (text + voice)
+- [x] Build frontend: Chat response display with Mia's avatar and speech bubbles
+- [x] Tests for Mia smart chat procedure (87 tests passing)
+
+## Phase 9 — Mia Voice Response
+
+- [x] Build useTTS hook for text-to-speech output on Mia's chat replies
+- [x] Add voice response toggle button in the chat input bar (speaker icon with tooltip)
+- [x] Integrate TTS into Home.tsx so Mia speaks her replies aloud
+- [x] Sync voice toggle with user's voiceEnabled setting from AvatarContext

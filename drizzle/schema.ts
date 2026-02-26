@@ -243,3 +243,46 @@ export const notifications = mysqlTable("notifications", {
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+// ─── Custom Agents ─────────────────────────────────────────────────────────
+export const customAgents = mysqlTable("custom_agents", {
+  id: int("id").autoincrement().primaryKey(),
+  createdBy: int("createdBy").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  /** The agent's role / title (e.g., "SLA Compliance Specialist") */
+  role: varchar("role", { length: 255 }),
+  /** Short description of what this agent does */
+  description: text("description"),
+  /** The full system prompt that defines this agent's behaviour */
+  systemPrompt: text("systemPrompt").notNull(),
+  /** Area of expertise tags (comma-separated) */
+  expertise: varchar("expertise", { length: 500 }),
+  /** Personality traits (e.g., "analytical, direct, supportive") */
+  personality: varchar("personality", { length: 500 }),
+  /** Avatar ID from the shared avatar library */
+  avatarId: varchar("avatarId", { length: 64 }).default("option-2").notNull(),
+  /** Whether this agent has voice enabled */
+  voiceEnabled: boolean("voiceEnabled").default(true).notNull(),
+  /** Whether this agent is active/archived */
+  isActive: boolean("isActive").default(true).notNull(),
+  /** Colour accent for the agent card (hex) */
+  accentColor: varchar("accentColor", { length: 7 }).default("#6366f1"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CustomAgent = typeof customAgents.$inferSelect;
+export type InsertCustomAgent = typeof customAgents.$inferInsert;
+
+// ─── Agent Messages (conversation history per agent) ───────────────────────
+export const agentMessages = mysqlTable("agent_messages", {
+  id: int("id").autoincrement().primaryKey(),
+  agentId: int("agentId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["user", "assistant"]).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AgentMessage = typeof agentMessages.$inferSelect;
+export type InsertAgentMessage = typeof agentMessages.$inferInsert;

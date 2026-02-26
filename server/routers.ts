@@ -746,5 +746,196 @@ Context: ${input.context || "Standard integrity operations"}` },
       return { reminders, count: reminders.length };
     }),
   }),
+
+  // ─── Custom Agents ──────────────────────────────────────────────────
+  agents: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return db.listCustomAgents(ctx.user.id);
+    }),
+    get: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
+      const agent = await db.getCustomAgent(input.id, ctx.user.id);
+      if (!agent) throw new Error("Agent not found");
+      return agent;
+    }),
+    create: protectedProcedure.input(z.object({
+      name: z.string().min(1).max(255),
+      role: z.string().max(255).optional(),
+      description: z.string().optional(),
+      systemPrompt: z.string().min(1),
+      expertise: z.string().max(500).optional(),
+      personality: z.string().max(500).optional(),
+      avatarId: z.string().default("option-2"),
+      voiceEnabled: z.boolean().default(true),
+      accentColor: z.string().max(7).default("#6366f1"),
+    })).mutation(async ({ ctx, input }) => {
+      return db.createCustomAgent({ ...input, createdBy: ctx.user.id });
+    }),
+    update: protectedProcedure.input(z.object({
+      id: z.number(),
+      name: z.string().min(1).max(255).optional(),
+      role: z.string().max(255).optional(),
+      description: z.string().optional(),
+      systemPrompt: z.string().min(1).optional(),
+      expertise: z.string().max(500).optional(),
+      personality: z.string().max(500).optional(),
+      avatarId: z.string().optional(),
+      voiceEnabled: z.boolean().optional(),
+      isActive: z.boolean().optional(),
+      accentColor: z.string().max(7).optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input;
+      await db.updateCustomAgent(id, ctx.user.id, data);
+      return { success: true };
+    }),
+    delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      await db.deleteCustomAgent(input.id, ctx.user.id);
+      return { success: true };
+    }),
+
+    // Chat with a custom agent
+    chat: protectedProcedure.input(z.object({
+      agentId: z.number(),
+      message: z.string().min(1),
+    })).mutation(async ({ ctx, input }) => {
+      const agent = await db.getCustomAgent(input.agentId, ctx.user.id);
+      if (!agent) throw new Error("Agent not found");
+
+      // Save user message
+      await db.addAgentMessage({
+        agentId: input.agentId,
+        userId: ctx.user.id,
+        role: "user",
+        content: input.message,
+      });
+
+      // Get conversation history for context
+      const history = await db.listAgentMessages(input.agentId, ctx.user.id, 20);
+      const messages = [
+        {
+          role: "system" as const,
+          content: `${agent.systemPrompt}\n\nYour name is ${agent.name}${agent.role ? ` and your role is ${agent.role}` : ""}.${agent.personality ? ` Your personality traits: ${agent.personality}.` : ""}${agent.expertise ? ` Your areas of expertise: ${agent.expertise}.` : ""} Respond helpfully and in character. The user's name is ${ctx.user.name || "there"}.`,
+        },
+        ...history.map(m => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        })),
+      ];
+
+      const result = await invokeLLM({ messages });
+      const reply = result.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response.";
+
+      // Save assistant reply
+      await db.addAgentMessage({
+        agentId: input.agentId,
+        userId: ctx.user.id,
+        role: "assistant",
+        content: typeof reply === "string" ? reply : JSON.stringify(reply),
+      });
+
+      return { reply: typeof reply === "string" ? reply : JSON.stringify(reply) };
+    }),
+
+    // Get conversation history
+    messages: protectedProcedure.input(z.object({
+      agentId: z.number(),
+      limit: z.number().optional(),
+    })).query(async ({ ctx, input }) => {
+      return db.listAgentMessages(input.agentId, ctx.user.id, input.limit ?? 50);
+    }),
+
+    // Clear conversation history
+    clearHistory: protectedProcedure.input(z.object({
+      agentId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      await db.clearAgentConversation(input.agentId, ctx.user.id);
+      return { success: true };
+    }),
+  }),
+
+  // ─── Mia Smart Chat (main page widget) ─────────────────────────────
+  mia: router({
+    chat: protectedProcedure.input(z.object({
+      message: z.string().min(1),
+    })).mutation(async ({ ctx, input }) => {
+      // Gather operational context from the database
+      const [vendorList, latestMetrics, taskList, alertList, notifList] = await Promise.all([
+        db.listVendors(),
+        db.getLatestMetricsForAllVendors(),
+        db.listTasks(),
+        db.listAlerts(),
+        db.listNotifications(ctx.user.id, { limit: 10 }),
+      ]);
+
+      const activeVendors = vendorList.filter((v: { contractStatus: string }) => v.contractStatus === "active");
+      const openTasks = taskList.filter((t: { status: string }) => t.status !== "completed" && t.status !== "cancelled");
+      const unresolvedAlerts = alertList.filter((a: { resolvedAt: Date | null }) => !a.resolvedAt);
+      const unreadNotifs = notifList.filter((n: { isRead: boolean }) => !n.isRead);
+
+      // Build a rich context summary for the LLM
+      const contextParts: string[] = [];
+
+      contextParts.push(`## Operational Snapshot`);
+      contextParts.push(`- Active vendors: ${activeVendors.length}`);
+      contextParts.push(`- Open tasks: ${openTasks.length}`);
+      contextParts.push(`- Unresolved alerts: ${unresolvedAlerts.length}`);
+      contextParts.push(`- Unread notifications: ${unreadNotifs.length}`);
+
+      if (activeVendors.length > 0) {
+        contextParts.push(`\n## Vendors`);
+        for (const v of activeVendors.slice(0, 10)) {
+          const m = latestMetrics.find((lm: { vendorId: number }) => lm.vendorId === v.id);
+          contextParts.push(`- **${v.name}** (${v.region || "Global"}, ${v.headcount || 0} headcount) — SLA targets: accuracy ${v.slaAccuracyTarget}%, throughput ${v.slaThroughputTarget}/day, response time ${v.slaResponseTimeTarget}h${m ? ` | Latest: accuracy ${m.accuracyRate}%, throughput ${m.throughput}, response ${m.responseTimeHours}h, quality ${m.qualityScore}` : " | No metrics yet"}`);
+        }
+      }
+
+      if (openTasks.length > 0) {
+        contextParts.push(`\n## Open Tasks (top 10)`);
+        for (const t of openTasks.slice(0, 10)) {
+          contextParts.push(`- [${t.priority}] ${t.title} — ${t.status}${t.dueDate ? `, due ${new Date(t.dueDate).toLocaleDateString()}` : ""}`);
+        }
+      }
+
+      if (unresolvedAlerts.length > 0) {
+        contextParts.push(`\n## Active Alerts (top 5)`);
+        for (const a of unresolvedAlerts.slice(0, 5)) {
+          contextParts.push(`- [${a.severity}] ${a.title}: ${a.description || "No details"}`);
+        }
+      }
+
+      if (unreadNotifs.length > 0) {
+        contextParts.push(`\n## Recent Notifications`);
+        for (const n of unreadNotifs.slice(0, 5)) {
+          contextParts.push(`- [${n.severity}] ${n.title}`);
+        }
+      }
+
+      const operationalContext = contextParts.join("\n");
+
+      const systemPrompt = `You are Mia (My Integrity Assistant), an AI operations assistant for integrity and trust & safety operations. You help a people manager who oversees a scaled human review workforce through vendor management.
+
+You have access to the following real-time operational data:
+
+${operationalContext}
+
+Respond helpfully, concisely, and in a warm professional tone. When answering questions:
+- Reference specific data from the operational context when relevant
+- Provide actionable recommendations when appropriate
+- If asked about something outside your data, be honest about limitations
+- Use markdown formatting for clarity
+- Keep responses focused and practical — this person is busy managing operations
+
+The user's name is ${ctx.user.name || "there"}.`;
+
+      const result = await invokeLLM({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: input.message },
+        ],
+      });
+
+      const reply = result.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response right now.";
+      return { reply: typeof reply === "string" ? reply : JSON.stringify(reply) };
+    }),
+  }),
 });
 export type AppRouter = typeof appRouter;

@@ -14,6 +14,8 @@ import {
   workforcePlans, InsertWorkforcePlan,
   userSettings, InsertUserSetting,
   notifications, InsertNotification,
+  customAgents, InsertCustomAgent,
+  agentMessages, InsertAgentMessage,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -587,4 +589,69 @@ export async function runTaskDeadlineCheck(userId: number) {
   }
 
   return reminders;
+}
+
+// ─── Custom Agents ──────────────────────────────────────────────────────────
+
+export async function listCustomAgents(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(customAgents)
+    .where(eq(customAgents.createdBy, userId))
+    .orderBy(desc(customAgents.updatedAt));
+}
+
+export async function getCustomAgent(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(customAgents)
+    .where(and(eq(customAgents.id, id), eq(customAgents.createdBy, userId)))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function createCustomAgent(data: InsertCustomAgent) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(customAgents).values(data);
+  return result;
+}
+
+export async function updateCustomAgent(id: number, userId: number, data: Partial<InsertCustomAgent>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(customAgents).set(data)
+    .where(and(eq(customAgents.id, id), eq(customAgents.createdBy, userId)));
+}
+
+export async function deleteCustomAgent(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  // Delete conversation history first
+  await db.delete(agentMessages).where(and(eq(agentMessages.agentId, id), eq(agentMessages.userId, userId)));
+  // Then delete the agent
+  await db.delete(customAgents).where(and(eq(customAgents.id, id), eq(customAgents.createdBy, userId)));
+}
+
+// ─── Agent Messages ─────────────────────────────────────────────────────────
+
+export async function listAgentMessages(agentId: number, userId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(agentMessages)
+    .where(and(eq(agentMessages.agentId, agentId), eq(agentMessages.userId, userId)))
+    .orderBy(asc(agentMessages.createdAt))
+    .limit(limit);
+}
+
+export async function addAgentMessage(data: InsertAgentMessage) {
+  const db = await getDb();
+  if (!db) return null;
+  return db.insert(agentMessages).values(data);
+}
+
+export async function clearAgentConversation(agentId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(agentMessages).where(and(eq(agentMessages.agentId, agentId), eq(agentMessages.userId, userId)));
 }

@@ -76,6 +76,24 @@ vi.mock("./db", () => ({
   markNotificationPushed: vi.fn().mockResolvedValue(undefined),
   runSlaBreachCheck: vi.fn().mockResolvedValue([{ vendorName: "Vendor A", metric: "Accuracy Rate", value: 90.5, target: 95 }]),
   runTaskDeadlineCheck: vi.fn().mockResolvedValue([{ taskTitle: "Review SLA", status: "overdue", dueDate: new Date() }]),
+  listCustomAgents: vi.fn().mockResolvedValue([
+    { id: 1, name: "SLA Guardian", role: "SLA Specialist", description: "Monitors SLA compliance", expertise: "SLA, compliance", personality: "Direct", systemPrompt: "You are an SLA specialist.", avatarId: "option-1", accentColor: "#6366f1", voiceEnabled: true, userId: 1, createdAt: new Date(), updatedAt: new Date() },
+  ]),
+  getCustomAgent: vi.fn().mockResolvedValue({ id: 1, name: "SLA Guardian", role: "SLA Specialist", description: "Monitors SLA compliance", expertise: "SLA, compliance", personality: "Direct", systemPrompt: "You are an SLA specialist.", avatarId: "option-1", accentColor: "#6366f1", voiceEnabled: true, userId: 1, createdAt: new Date(), updatedAt: new Date() }),
+  createCustomAgent: vi.fn().mockResolvedValue({ insertId: 1 }),
+  updateCustomAgent: vi.fn().mockResolvedValue(undefined),
+  deleteCustomAgent: vi.fn().mockResolvedValue(undefined),
+  getAgentMessages: vi.fn().mockResolvedValue([
+    { id: 1, agentId: 1, role: "user", content: "Hello", createdAt: new Date() },
+    { id: 2, agentId: 1, role: "assistant", content: "Hi there!", createdAt: new Date() },
+  ]),
+  listAgentMessages: vi.fn().mockResolvedValue([
+    { id: 1, agentId: 1, role: "user", content: "Hello", createdAt: new Date() },
+    { id: 2, agentId: 1, role: "assistant", content: "Hi there!", createdAt: new Date() },
+  ]),
+  addAgentMessage: vi.fn().mockResolvedValue({ insertId: 3 }),
+  clearAgentConversation: vi.fn().mockResolvedValue(undefined),
+  bulkImportMetrics: vi.fn().mockResolvedValue({ imported: 5 }),
 }));
 
 // Mock the notification module
@@ -722,5 +740,108 @@ describe("notifications", () => {
   it("rejects unauthenticated access to notifications.runSlaCheck", async () => {
     const caller = appRouter.createCaller(createUnauthContext());
     await expect(caller.notifications.runSlaCheck()).rejects.toThrow();
+  });
+});
+
+// ─── Agent Library Tests ─────────────────────────────────────────────
+describe("agents", () => {
+  it("lists custom agents for the authenticated user", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.agents.list();
+    expect(Array.isArray(result)).toBe(true);
+    expect(result[0].name).toBe("SLA Guardian");
+  });
+
+  it("gets a single agent by id", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.agents.get({ id: 1 });
+    expect(result.name).toBe("SLA Guardian");
+    expect(result.systemPrompt).toBe("You are an SLA specialist.");
+  });
+
+  it("creates a new custom agent", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.agents.create({
+      name: "Quality Analyst",
+      role: "Quality Specialist",
+      description: "Analyzes quality metrics",
+      expertise: "quality, metrics",
+      personality: "Analytical",
+      systemPrompt: "You are a quality analyst.",
+      avatarId: "option-3",
+      accentColor: "#10b981",
+      voiceEnabled: false,
+    });
+    expect(result.insertId).toBeDefined();
+  });
+
+  it("updates an existing agent", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.agents.update({
+      id: 1,
+      name: "SLA Guardian Pro",
+      role: "Senior SLA Specialist",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("deletes an agent", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.agents.delete({ id: 1 });
+    expect(result.success).toBe(true);
+  });
+
+  it("retrieves agent message history", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.agents.messages({ agentId: 1 });
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBe(2);
+    expect(result[0].role).toBe("user");
+    expect(result[1].role).toBe("assistant");
+  });
+
+  it("sends a chat message to an agent and gets AI reply", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.agents.chat({ agentId: 1, message: "What is the current SLA status?" });
+    expect(result.reply).toBeDefined();
+    expect(typeof result.reply).toBe("string");
+  });
+
+  it("clears agent conversation history", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.agents.clearHistory({ agentId: 1 });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects unauthenticated access to agents.list", async () => {
+    const caller = appRouter.createCaller(createUnauthContext());
+    await expect(caller.agents.list()).rejects.toThrow();
+  });
+});
+
+// ─── Mia Smart Chat Tests ────────────────────────────────────────────
+describe("mia", () => {
+  it("responds to a chat message with operational context", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.mia.chat({ message: "How are my vendors performing?" });
+    expect(result.reply).toBeDefined();
+    expect(typeof result.reply).toBe("string");
+    expect(result.reply.length).toBeGreaterThan(0);
+  });
+
+  it("handles different question types", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.mia.chat({ message: "What tasks are overdue?" });
+    expect(result.reply).toBeDefined();
+  });
+
+  it("rejects unauthenticated access to mia.chat", async () => {
+    const caller = appRouter.createCaller(createUnauthContext());
+    await expect(caller.mia.chat({ message: "Hello" })).rejects.toThrow();
+  });
+
+  it("rejects empty messages", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    await expect(caller.mia.chat({ message: "" })).rejects.toThrow();
   });
 });
