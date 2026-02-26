@@ -4,32 +4,49 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import DashboardLayout from "./components/DashboardLayout";
 import Home from "./pages/Home";
+import Vendors from "./pages/Vendors";
+import VendorDetail from "./pages/VendorDetail";
+import Tasks from "./pages/Tasks";
+import Reports from "./pages/Reports";
+import Meetings from "./pages/Meetings";
+import Communications from "./pages/Communications";
+import Workforce from "./pages/Workforce";
+import Quality from "./pages/Quality";
+import Scorecards from "./pages/Scorecards";
+import Documents from "./pages/Documents";
+import MeetingSummarizer from "./pages/MeetingSummarizer";
+import Alerts from "./pages/Alerts";
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
-    <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
-      <Route component={NotFound} />
-    </Switch>
+    <DashboardLayout>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/vendors" component={Vendors} />
+        <Route path="/vendors/:id" component={VendorDetail} />
+        <Route path="/tasks" component={Tasks} />
+        <Route path="/reports" component={Reports} />
+        <Route path="/meetings" component={Meetings} />
+        <Route path="/communications" component={Communications} />
+        <Route path="/workforce" component={Workforce} />
+        <Route path="/quality" component={Quality} />
+        <Route path="/scorecards" component={Scorecards} />
+        <Route path="/documents" component={Documents} />
+        <Route path="/summarizer" component={MeetingSummarizer} />
+        <Route path="/alerts" component={Alerts} />
+        <Route path="/404" component={NotFound} />
+        <Route component={NotFound} />
+      </Switch>
+    </DashboardLayout>
   );
 }
-
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
           <Router />
