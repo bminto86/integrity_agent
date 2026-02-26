@@ -189,3 +189,11 @@
 - [x] Generate Ned Flanders-inspired avatar for GO4Ai
 - [x] Wire into Agent Library alongside Mr Diff
 - [x] Tests passing after addition (108 tests passing)
+
+## Phase 16 — My AI Usage Agent
+
+- [x] Design persona: energetic fitness-trainer-style AI usage coach ("Coach Byte")
+- [x] System prompt: weekly AI usage analysis, benchmarking, gap identification, scorecard generation
+- [x] Generate avatar for Coach Byte
+- [x] Wire into Agent Library alongside Mr Diff and GO4Ai
+- [x] Tests passing after addition (108 tests passing)

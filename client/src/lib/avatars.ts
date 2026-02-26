@@ -66,6 +66,13 @@ export const AVATAR_OPTIONS: AvatarOption[] = [
     imageUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663316543184/zjsxDBAogbXPTdTE.png",
     gender: "male",
   },
+  {
+    id: "option-coach-byte",
+    name: "Coach Byte",
+    description: "Your high-energy AI usage performance coach — tracking reps, closing gaps",
+    imageUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663316543184/ikTffzgdXrNUxNJJ.png",
+    gender: "female",
+  },
 ];
 
 export const DEFAULT_AVATAR_ID = "option-2";
