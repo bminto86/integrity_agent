@@ -181,3 +181,11 @@
 - [x] Generate grumpy old man avatar for Mr Diff
 - [x] Wire into Agent Library so he appears as a built-in agent
 - [x] Tests for Mr Diff agent creation (108 tests passing)
+
+## Phase 15 — GO4Ai Agent
+
+- [x] Create GO4Ai as a pre-seeded built-in agent with Ned Flanders persona
+- [x] System prompt: GO AI Skills completion tracking, SQL generation for Meta HR/learning tables
+- [x] Generate Ned Flanders-inspired avatar for GO4Ai
+- [x] Wire into Agent Library alongside Mr Diff
+- [x] Tests passing after addition (108 tests passing)

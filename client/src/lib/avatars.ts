@@ -59,6 +59,13 @@ export const AVATAR_OPTIONS: AvatarOption[] = [
     imageUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663316543184/HaPTGTaYCHjglyZs.png",
     gender: "male",
   },
+  {
+    id: "option-go4ai",
+    name: "GO4Ai",
+    description: "Impossibly friendly AI skills tracker — your neighborly learning companion",
+    imageUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663316543184/zjsxDBAogbXPTdTE.png",
+    gender: "male",
+  },
 ];
 
 export const DEFAULT_AVATAR_ID = "option-2";
