@@ -76,6 +76,7 @@ vi.mock("./db", () => ({
   markNotificationPushed: vi.fn().mockResolvedValue(undefined),
   runSlaBreachCheck: vi.fn().mockResolvedValue([{ vendorName: "Vendor A", metric: "Accuracy Rate", value: 90.5, target: 95 }]),
   runTaskDeadlineCheck: vi.fn().mockResolvedValue([{ taskTitle: "Review SLA", status: "overdue", dueDate: new Date() }]),
+  seedBuiltInAgentsForUser: vi.fn().mockResolvedValue(undefined),
   listCustomAgents: vi.fn().mockResolvedValue([
     { id: 1, name: "SLA Guardian", role: "SLA Specialist", description: "Monitors SLA compliance", expertise: "SLA, compliance", personality: "Direct", systemPrompt: "You are an SLA specialist.", avatarId: "option-1", accentColor: "#6366f1", voiceEnabled: true, userId: 1, createdAt: new Date(), updatedAt: new Date() },
   ]),

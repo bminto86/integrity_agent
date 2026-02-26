@@ -173,3 +173,11 @@
 - [x] Resolution verification: check if metrics recovered post-remediation
 - [x] Historical pattern detection across escalations
 - [x] Tests for escalation engine, vendor portal security, and case management (108 tests passing)
+
+## Phase 14 — Mr Diff Agent
+
+- [x] Create Mr Diff as a pre-seeded agent with grumpy old man persona (Carl from Up)
+- [x] System prompt: exhaustive diff review from privacy, security, compliance, operational risk perspectives
+- [x] Generate grumpy old man avatar for Mr Diff
+- [x] Wire into Agent Library so he appears as a built-in agent
+- [x] Tests for Mr Diff agent creation (108 tests passing)

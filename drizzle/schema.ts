@@ -283,6 +283,8 @@ export const customAgents = mysqlTable("custom_agents", {
   voiceEnabled: boolean("voiceEnabled").default(true).notNull(),
   /** Whether this agent is active/archived */
   isActive: boolean("isActive").default(true).notNull(),
+  /** Whether this is a built-in (pre-seeded) agent that cannot be deleted */
+  isBuiltIn: boolean("isBuiltIn").default(false).notNull(),
   /** Colour accent for the agent card (hex) */
   accentColor: varchar("accentColor", { length: 7 }).default("#6366f1"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

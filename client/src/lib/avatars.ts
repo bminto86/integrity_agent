@@ -52,6 +52,13 @@ export const AVATAR_OPTIONS: AvatarOption[] = [
     imageUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663316543184/VbYmURmwHWMGmpNi.png",
     gender: "male",
   },
+  {
+    id: "option-mr-diff",
+    name: "Mr Diff",
+    description: "Grumpy veteran code reviewer — seen it all, trusts nothing",
+    imageUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663316543184/HaPTGTaYCHjglyZs.png",
+    gender: "male",
+  },
 ];
 
 export const DEFAULT_AVATAR_ID = "option-2";

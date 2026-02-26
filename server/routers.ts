@@ -765,6 +765,8 @@ Context: ${input.context || "Standard integrity operations"}` },
   // ─── Custom Agents ──────────────────────────────────────────────────
   agents: router({
     list: protectedProcedure.query(async ({ ctx }) => {
+      // Auto-seed built-in agents on first load
+      await db.seedBuiltInAgentsForUser(ctx.user.id);
       return db.listCustomAgents(ctx.user.id);
     }),
     get: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {

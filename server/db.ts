@@ -596,9 +596,34 @@ export async function runTaskDeadlineCheck(userId: number) {
 export async function listCustomAgents(userId: number) {
   const db = await getDb();
   if (!db) return [];
+  // Return both user-created and built-in agents for this user
   return db.select().from(customAgents)
     .where(eq(customAgents.createdBy, userId))
     .orderBy(desc(customAgents.updatedAt));
+}
+
+/** Seed built-in agents for a user if they don't already have them */
+export async function seedBuiltInAgentsForUser(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const { BUILT_IN_AGENTS } = await import("./builtInAgents");
+  for (const agentDef of BUILT_IN_AGENTS) {
+    // Check if this built-in agent already exists for this user
+    const existing = await db.select({ id: customAgents.id }).from(customAgents)
+      .where(and(
+        eq(customAgents.createdBy, userId),
+        eq(customAgents.name, agentDef.name),
+        eq(customAgents.isBuiltIn, true),
+      ))
+      .limit(1);
+    if (existing.length === 0) {
+      await db.insert(customAgents).values({
+        createdBy: userId,
+        isBuiltIn: true,
+        ...agentDef,
+      });
+    }
+  }
 }
 
 export async function getCustomAgent(id: number, userId: number) {
@@ -627,6 +652,13 @@ export async function updateCustomAgent(id: number, userId: number, data: Partia
 export async function deleteCustomAgent(id: number, userId: number) {
   const db = await getDb();
   if (!db) return;
+  // Prevent deletion of built-in agents
+  const agent = await db.select({ isBuiltIn: customAgents.isBuiltIn }).from(customAgents)
+    .where(and(eq(customAgents.id, id), eq(customAgents.createdBy, userId)))
+    .limit(1);
+  if (agent[0]?.isBuiltIn) {
+    throw new Error("Built-in agents cannot be deleted");
+  }
   // Delete conversation history first
   await db.delete(agentMessages).where(and(eq(agentMessages.agentId, id), eq(agentMessages.userId, userId)));
   // Then delete the agent

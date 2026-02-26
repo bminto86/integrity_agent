@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, Plus, Pencil, Trash2, MessageCircle, Bot, Sparkles, Volume2, VolumeX, MessageSquare } from "lucide-react";
+import { Check, Plus, Pencil, Trash2, MessageCircle, Bot, Sparkles, Volume2, VolumeX, MessageSquare, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const ACCENT_COLORS = [
@@ -236,7 +236,12 @@ export default function AgentLibrary() {
                             <p className="text-xs text-muted-foreground truncate">{agent.role}</p>
                           )}
                         </div>
-                        {!agent.isActive && (
+                        {agent.isBuiltIn && (
+                          <Badge variant="default" className="text-[10px] shrink-0 bg-stone-500">
+                            <Shield className="h-2.5 w-2.5 mr-0.5" /> Built-in
+                          </Badge>
+                        )}
+                        {!agent.isActive && !agent.isBuiltIn && (
                           <Badge variant="secondary" className="text-[10px] shrink-0">Archived</Badge>
                         )}
                       </div>
@@ -284,21 +289,25 @@ export default function AgentLibrary() {
                           <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
                           Chat
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenEdit(agent)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setDeletingAgent({ id: agent.id, name: agent.name })}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {!agent.isBuiltIn && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenEdit(agent)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {!agent.isBuiltIn && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeletingAgent({ id: agent.id, name: agent.name })}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

@@ -1,0 +1,1 @@
+ALTER TABLE `custom_agents` ADD `isBuiltIn` boolean DEFAULT false NOT NULL;
