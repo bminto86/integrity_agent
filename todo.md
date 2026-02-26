@@ -197,3 +197,10 @@
 - [x] Generate avatar for Coach Byte
 - [x] Wire into Agent Library alongside Mr Diff and GO4Ai
 - [x] Tests passing after addition (108 tests passing)
+
+## Phase 17 — Copy Prompt Feature
+
+- [x] Add "Copy Prompt" button to each agent card in Agent Library
+- [x] Include toast confirmation on successful copy
+- [x] Works for both built-in and custom agents
+- [x] Tests passing after addition (108 tests passing)

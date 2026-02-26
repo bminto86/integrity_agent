@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, Plus, Pencil, Trash2, MessageCircle, Bot, Sparkles, Volume2, VolumeX, MessageSquare, Shield } from "lucide-react";
+import { Check, Plus, Pencil, Trash2, MessageCircle, Bot, Sparkles, Volume2, VolumeX, MessageSquare, Shield, Copy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const ACCENT_COLORS = [
@@ -288,6 +288,20 @@ export default function AgentLibrary() {
                         >
                           <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
                           Chat
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="Copy system prompt"
+                          onClick={() => {
+                            navigator.clipboard.writeText(agent.systemPrompt).then(() => {
+                              toast.success("Prompt copied", { description: `${agent.name}'s system prompt copied to clipboard.` });
+                            }).catch(() => {
+                              toast.error("Failed to copy", { description: "Your browser blocked clipboard access." });
+                            });
+                          }}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
                         </Button>
                         {!agent.isBuiltIn && (
                           <Button
