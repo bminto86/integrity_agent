@@ -16,7 +16,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-import { Plus, Pencil, Trash2, MessageCircle, Bot, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Check, Plus, Pencil, Trash2, MessageCircle, Bot, Sparkles, Volume2, VolumeX, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const ACCENT_COLORS = [
@@ -35,7 +36,31 @@ interface AgentFormData {
   avatarId: string;
   voiceEnabled: boolean;
   accentColor: string;
+  responseTone: string;
+  responseVerbosity: string;
+  responseFormality: string;
+  responseCustomInstructions: string;
 }
+
+const TONE_OPTIONS = [
+  { value: "professional", label: "Professional", desc: "Clear, business-appropriate" },
+  { value: "casual", label: "Casual", desc: "Relaxed, everyday style" },
+  { value: "friendly", label: "Friendly", desc: "Warm and encouraging" },
+  { value: "direct", label: "Direct", desc: "Straight to the point" },
+  { value: "empathetic", label: "Empathetic", desc: "Understanding, supportive" },
+];
+
+const VERBOSITY_OPTIONS = [
+  { value: "concise", label: "Concise", desc: "Short, punchy responses" },
+  { value: "balanced", label: "Balanced", desc: "Enough detail to be useful" },
+  { value: "detailed", label: "Detailed", desc: "Thorough with examples" },
+];
+
+const FORMALITY_OPTIONS = [
+  { value: "formal", label: "Formal", desc: "Corporate, structured" },
+  { value: "conversational", label: "Conversational", desc: "Like a colleague" },
+  { value: "casual", label: "Casual", desc: "Informal, relaxed" },
+];
 
 const EMPTY_FORM: AgentFormData = {
   name: "",
@@ -47,6 +72,10 @@ const EMPTY_FORM: AgentFormData = {
   avatarId: "option-2",
   voiceEnabled: true,
   accentColor: "#6366f1",
+  responseTone: "professional",
+  responseVerbosity: "balanced",
+  responseFormality: "conversational",
+  responseCustomInstructions: "",
 };
 
 export default function AgentLibrary() {
@@ -99,6 +128,10 @@ export default function AgentLibrary() {
       avatarId: agent.avatarId,
       voiceEnabled: agent.voiceEnabled,
       accentColor: agent.accentColor || "#6366f1",
+      responseTone: agent.responseTone || "professional",
+      responseVerbosity: agent.responseVerbosity || "balanced",
+      responseFormality: agent.responseFormality || "conversational",
+      responseCustomInstructions: agent.responseCustomInstructions || "",
     });
     setEditingAgent(agent.id);
   };
@@ -431,6 +464,94 @@ export default function AgentLibrary() {
                   <Switch
                     checked={form.voiceEnabled}
                     onCheckedChange={v => setForm(f => ({ ...f, voiceEnabled: v }))}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Response Style Section */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" /> Response Style
+                </h4>
+
+                {/* Tone */}
+                <div className="space-y-2">
+                  <Label>Tone</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {TONE_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setForm(f => ({ ...f, responseTone: opt.value }))}
+                        className={`p-2 rounded-lg border text-left transition-all ${
+                          form.responseTone === opt.value
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                            : "border-border/60 hover:border-primary/40"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-medium ${form.responseTone === opt.value ? "text-primary" : "text-foreground"}`}>
+                            {opt.label}
+                          </span>
+                          {form.responseTone === opt.value && <Check className="h-3 w-3 text-primary" />}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{opt.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Verbosity & Formality */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Verbosity</Label>
+                    <Select
+                      value={form.responseVerbosity}
+                      onValueChange={val => setForm(f => ({ ...f, responseVerbosity: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {VERBOSITY_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label} — {opt.desc}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Formality</Label>
+                    <Select
+                      value={form.responseFormality}
+                      onValueChange={val => setForm(f => ({ ...f, responseFormality: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FORMALITY_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label} — {opt.desc}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Custom Instructions */}
+                <div className="space-y-2">
+                  <Label>Custom Instructions</Label>
+                  <p className="text-[10px] text-muted-foreground">Specific rules for how this agent should respond</p>
+                  <Textarea
+                    placeholder='e.g., "Always provide data-backed recommendations", "Start with a one-line summary"'
+                    value={form.responseCustomInstructions}
+                    onChange={e => setForm(f => ({ ...f, responseCustomInstructions: e.target.value }))}
+                    rows={3}
+                    className="resize-none"
                   />
                 </div>
               </div>

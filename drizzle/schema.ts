@@ -211,6 +211,16 @@ export const userSettings = mysqlTable("user_settings", {
   avatarId: varchar("avatarId", { length: 64 }).default("option-2").notNull(),
   agentName: varchar("agentName", { length: 128 }).default("Mia").notNull(),
   voiceEnabled: boolean("voiceEnabled").default(true).notNull(),
+  /** Response style: tone (professional, casual, friendly, direct, empathetic) */
+  responseTone: varchar("responseTone", { length: 64 }).default("professional"),
+  /** Response style: verbosity (concise, balanced, detailed) */
+  responseVerbosity: varchar("responseVerbosity", { length: 64 }).default("balanced"),
+  /** Response style: formality (formal, conversational, casual) */
+  responseFormality: varchar("responseFormality", { length: 64 }).default("conversational"),
+  /** Response style: personality traits (comma-separated) */
+  responsePersonality: varchar("responsePersonality", { length: 500 }).default("supportive, analytical"),
+  /** Response style: custom instructions (free text) */
+  responseCustomInstructions: text("responseCustomInstructions"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -259,6 +269,14 @@ export const customAgents = mysqlTable("custom_agents", {
   expertise: varchar("expertise", { length: 500 }),
   /** Personality traits (e.g., "analytical, direct, supportive") */
   personality: varchar("personality", { length: 500 }),
+  /** Response tone (professional, casual, friendly, direct, empathetic) */
+  responseTone: varchar("responseTone", { length: 64 }).default("professional"),
+  /** Response verbosity (concise, balanced, detailed) */
+  responseVerbosity: varchar("responseVerbosity", { length: 64 }).default("balanced"),
+  /** Response formality (formal, conversational, casual) */
+  responseFormality: varchar("responseFormality", { length: 64 }).default("conversational"),
+  /** Custom response instructions */
+  responseCustomInstructions: text("responseCustomInstructions"),
   /** Avatar ID from the shared avatar library */
   avatarId: varchar("avatarId", { length: 64 }).default("option-2").notNull(),
   /** Whether this agent has voice enabled */

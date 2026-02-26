@@ -22,12 +22,26 @@ export const appRouter = router({
   settings: router({
     get: protectedProcedure.query(async ({ ctx }) => {
       const settings = await db.getUserSettings(ctx.user.id);
-      return settings ?? { avatarId: "option-2", agentName: "Mia", voiceEnabled: true };
+      return settings ?? {
+        avatarId: "option-2",
+        agentName: "Mia",
+        voiceEnabled: true,
+        responseTone: "professional",
+        responseVerbosity: "balanced",
+        responseFormality: "conversational",
+        responsePersonality: "supportive, analytical",
+        responseCustomInstructions: "",
+      };
     }),
     update: protectedProcedure.input(z.object({
       avatarId: z.string().optional(),
       agentName: z.string().optional(),
       voiceEnabled: z.boolean().optional(),
+      responseTone: z.string().optional(),
+      responseVerbosity: z.string().optional(),
+      responseFormality: z.string().optional(),
+      responsePersonality: z.string().optional(),
+      responseCustomInstructions: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       return db.upsertUserSettings(ctx.user.id, input);
     }),
@@ -767,6 +781,10 @@ Context: ${input.context || "Standard integrity operations"}` },
       avatarId: z.string().default("option-2"),
       voiceEnabled: z.boolean().default(true),
       accentColor: z.string().max(7).default("#6366f1"),
+      responseTone: z.string().max(64).default("professional"),
+      responseVerbosity: z.string().max(64).default("balanced"),
+      responseFormality: z.string().max(64).default("conversational"),
+      responseCustomInstructions: z.string().max(1000).optional(),
     })).mutation(async ({ ctx, input }) => {
       return db.createCustomAgent({ ...input, createdBy: ctx.user.id });
     }),
@@ -782,6 +800,10 @@ Context: ${input.context || "Standard integrity operations"}` },
       voiceEnabled: z.boolean().optional(),
       isActive: z.boolean().optional(),
       accentColor: z.string().max(7).optional(),
+      responseTone: z.string().max(64).optional(),
+      responseVerbosity: z.string().max(64).optional(),
+      responseFormality: z.string().max(64).optional(),
+      responseCustomInstructions: z.string().max(1000).optional(),
     })).mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       await db.updateCustomAgent(id, ctx.user.id, data);
@@ -813,7 +835,7 @@ Context: ${input.context || "Standard integrity operations"}` },
       const messages = [
         {
           role: "system" as const,
-          content: `${agent.systemPrompt}\n\nYour name is ${agent.name}${agent.role ? ` and your role is ${agent.role}` : ""}.${agent.personality ? ` Your personality traits: ${agent.personality}.` : ""}${agent.expertise ? ` Your areas of expertise: ${agent.expertise}.` : ""} Respond helpfully and in character. The user's name is ${ctx.user.name || "there"}.`,
+          content: `${agent.systemPrompt}\n\nYour name is ${agent.name}${agent.role ? ` and your role is ${agent.role}` : ""}.${agent.personality ? ` Your personality traits: ${agent.personality}.` : ""}${agent.expertise ? ` Your areas of expertise: ${agent.expertise}.` : ""}${agent.responseTone ? `\n\nCommunication style:\n- Tone: ${agent.responseTone}` : ""}${agent.responseVerbosity ? `\n- Verbosity: ${agent.responseVerbosity}` : ""}${agent.responseFormality ? `\n- Formality: ${agent.responseFormality}` : ""}${agent.responseCustomInstructions ? `\n- Special instructions: ${agent.responseCustomInstructions}` : ""} Respond helpfully and in character. The user's name is ${ctx.user.name || "there"}.`,
         },
         ...history.map(m => ({
           role: m.role as "user" | "assistant",
@@ -911,13 +933,23 @@ Context: ${input.context || "Standard integrity operations"}` },
 
       const operationalContext = contextParts.join("\n");
 
+      // Fetch user's response style preferences
+      const userSettings = await db.getUserSettings(ctx.user.id);
+      const tone = userSettings?.responseTone || "professional";
+      const verbosity = userSettings?.responseVerbosity || "balanced";
+      const formality = userSettings?.responseFormality || "conversational";
+      const personality = userSettings?.responsePersonality || "supportive, analytical";
+      const customInstructions = userSettings?.responseCustomInstructions || "";
+
+      const styleDirective = `\n\n## Your Communication Style\n- Tone: ${tone}\n- Verbosity: ${verbosity} (${verbosity === "concise" ? "keep responses short and to the point, use bullet points" : verbosity === "detailed" ? "provide thorough explanations with context and examples" : "balance brevity with enough detail to be useful"})\n- Formality: ${formality}\n- Personality traits: ${personality}\n${customInstructions ? `- Additional instructions: ${customInstructions}` : ""}`;
+
       const systemPrompt = `You are Mia (My Integrity Assistant), an AI operations assistant for integrity and trust & safety operations. You help a people manager who oversees a scaled human review workforce through vendor management.
 
 You have access to the following real-time operational data:
 
-${operationalContext}
+${operationalContext}${styleDirective}
 
-Respond helpfully, concisely, and in a warm professional tone. When answering questions:
+When answering questions:
 - Reference specific data from the operational context when relevant
 - Provide actionable recommendations when appropriate
 - If asked about something outside your data, be honest about limitations

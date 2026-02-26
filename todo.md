@@ -104,3 +104,13 @@
 - [x] Add voice response toggle button in the chat input bar (speaker icon with tooltip)
 - [x] Integrate TTS into Home.tsx so Mia speaks her replies aloud
 - [x] Sync voice toggle with user's voiceEnabled setting from AvatarContext
+
+## Phase 10 — Response Style Customization
+
+- [x] Database: Add response style columns to user_settings (tone, verbosity, formality, personality, custom instructions)
+- [x] Backend: Include response style in settings.update and agents.create/update input schemas
+- [x] Backend: Response style injected into custom agent chat system prompts
+- [x] Frontend: Add response style controls to Agent Settings page for Mia (tone picker, verbosity, formality, custom instructions)
+- [x] Frontend: Add response style controls to Agent Library create/edit dialog for custom agents
+- [x] Optimized browser TTS with smart voice selection (Google/neural voices prioritized)
+- [x] Tests passing (87 tests)
