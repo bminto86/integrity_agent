@@ -60,3 +60,16 @@
 - [x] Replace canvas-drawn face with photo-based avatar across all pages
 - [x] Set Option 2 as default avatar
 - [x] Tests for avatar selection feature (62 tests passing)
+
+## Phase 6 — Proactive Notification System
+
+- [x] Database: Add notifications table for in-app notification history
+- [x] Backend: Notification creation helpers and tRPC router (list, markRead, markAllRead, dismiss)
+- [x] Backend: SLA breach detection job that auto-creates notifications
+- [x] Backend: Task deadline reminder job (overdue + due-soon tasks)
+- [x] Backend: Wire notifyOwner for out-of-app push alerts on critical events
+- [x] Frontend: Notification bell icon in header with unread badge count
+- [x] Frontend: Notification center panel with grouped notifications and Mia commentary
+- [x] Frontend: Real-time polling for new notifications (30s interval)
+- [x] Frontend: Mia proactive toast alerts for high-severity notifications
+- [x] Tests for notification system (74 tests passing)

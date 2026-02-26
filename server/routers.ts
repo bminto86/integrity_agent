@@ -5,6 +5,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { invokeLLM } from "./_core/llm";
 import * as db from "./db";
+import { notifyOwner } from "./_core/notification";
 
 export const appRouter = router({
   system: systemRouter,
@@ -691,7 +692,59 @@ Context: ${input.context || "Standard integrity operations"}` },
 
       return { content: result.choices[0]?.message?.content || "Analysis failed." };
     }),
+   }),
+
+  // ─── Notifications ──────────────────────────────────────────────────
+  notifications: router({
+    list: protectedProcedure.input(z.object({
+      unreadOnly: z.boolean().optional(),
+      limit: z.number().optional(),
+    }).optional()).query(async ({ ctx, input }) => {
+      return db.listNotifications(ctx.user.id, {
+        unreadOnly: input?.unreadOnly,
+        limit: input?.limit ?? 50,
+      });
+    }),
+    unreadCount: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUnreadNotificationCount(ctx.user.id);
+    }),
+    markRead: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      await db.markNotificationRead(input.id, ctx.user.id);
+      return { success: true };
+    }),
+    markAllRead: protectedProcedure.mutation(async ({ ctx }) => {
+      await db.markAllNotificationsRead(ctx.user.id);
+      return { success: true };
+    }),
+    dismiss: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      await db.dismissNotification(input.id, ctx.user.id);
+      return { success: true };
+    }),
+    runSlaCheck: protectedProcedure.mutation(async ({ ctx }) => {
+      const breaches = await db.runSlaBreachCheck(ctx.user.id);
+      // Push critical breaches to owner out-of-app
+      if (breaches.length > 0) {
+        const summary = breaches.map(b => `${b.vendorName}: ${b.metric} at ${b.value} (target: ${b.target})`).join("\n");
+        await notifyOwner({
+          title: `⚠️ Mia Alert: ${breaches.length} SLA Breach${breaches.length > 1 ? "es" : ""} Detected`,
+          content: `Mia has detected the following SLA breaches:\n\n${summary}\n\nPlease review in the Integrity Ops dashboard.`,
+        }).catch(() => {});
+      }
+      return { breaches, count: breaches.length };
+    }),
+    runTaskCheck: protectedProcedure.mutation(async ({ ctx }) => {
+      const reminders = await db.runTaskDeadlineCheck(ctx.user.id);
+      // Push overdue tasks to owner out-of-app
+      const overdue = reminders.filter(r => r.status === "overdue");
+      if (overdue.length > 0) {
+        const summary = overdue.map(r => `- ${r.taskTitle} (due: ${r.dueDate.toLocaleDateString()})`).join("\n");
+        await notifyOwner({
+          title: `📌 Mia Reminder: ${overdue.length} Overdue Task${overdue.length > 1 ? "s" : ""}`,
+          content: `You have overdue tasks that need attention:\n\n${summary}\n\nPlease review in the task tracker.`,
+        }).catch(() => {});
+      }
+      return { reminders, count: reminders.length };
+    }),
   }),
 });
-
 export type AppRouter = typeof appRouter;

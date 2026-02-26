@@ -217,3 +217,29 @@ export const userSettings = mysqlTable("user_settings", {
 
 export type UserSetting = typeof userSettings.$inferSelect;
 export type InsertUserSetting = typeof userSettings.$inferInsert;
+
+// ─── Notifications ──────────────────────────────────────────────────────────
+export const notifications = mysqlTable("notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  type: mysqlEnum("type", [
+    "sla_breach", "task_overdue", "task_due_soon", "quality_drop",
+    "capacity_warning", "scorecard_ready", "report_ready", "system", "mia_insight"
+  ]).notNull(),
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).default("medium").notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  message: text("message"),
+  /** Optional link to navigate to when clicked */
+  actionUrl: varchar("actionUrl", { length: 500 }),
+  /** Optional reference to related entity */
+  relatedEntityType: varchar("relatedEntityType", { length: 64 }),
+  relatedEntityId: int("relatedEntityId"),
+  isRead: boolean("isRead").default(false).notNull(),
+  isDismissed: boolean("isDismissed").default(false).notNull(),
+  /** Whether the owner was also notified out-of-app */
+  pushedToOwner: boolean("pushedToOwner").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;

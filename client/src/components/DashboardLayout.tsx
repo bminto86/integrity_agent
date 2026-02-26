@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { NotificationBell } from "@/components/NotificationCenter";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -282,16 +283,17 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
       </div>
 
       <SidebarInset>
-        {isMobile && (
-          <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
-              <span className="tracking-tight text-foreground text-sm font-medium">
-                {activeMenuItem?.label ?? "Menu"}
-              </span>
-            </div>
+        <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 md:px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
+          <div className="flex items-center gap-2">
+            {isMobile && <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />}
+            <span className="tracking-tight text-foreground text-sm font-medium">
+              {activeMenuItem?.label ?? "Menu"}
+            </span>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+          </div>
+        </div>
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </SidebarInset>
     </>

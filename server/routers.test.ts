@@ -64,6 +64,23 @@ vi.mock("./db", () => ({
   deleteWorkforcePlan: vi.fn().mockResolvedValue(undefined),
   getUserSettings: vi.fn().mockResolvedValue({ avatarId: "option-2", agentName: "Mia", voiceEnabled: true }),
   upsertUserSettings: vi.fn().mockResolvedValue({ success: true }),
+  listNotifications: vi.fn().mockResolvedValue([
+    { id: 1, userId: 1, type: "sla_breach", severity: "critical", title: "SLA Breach: Vendor A", message: "Accuracy below target", actionUrl: "/vendors/1", isRead: false, isDismissed: false, createdAt: new Date() },
+    { id: 2, userId: 1, type: "task_overdue", severity: "high", title: "Overdue: Review SLA", message: "Task was due yesterday", actionUrl: "/tasks", isRead: true, isDismissed: false, createdAt: new Date() },
+  ]),
+  getUnreadNotificationCount: vi.fn().mockResolvedValue(3),
+  createNotification: vi.fn().mockResolvedValue({ insertId: 1 }),
+  markNotificationRead: vi.fn().mockResolvedValue(undefined),
+  markAllNotificationsRead: vi.fn().mockResolvedValue(undefined),
+  dismissNotification: vi.fn().mockResolvedValue(undefined),
+  markNotificationPushed: vi.fn().mockResolvedValue(undefined),
+  runSlaBreachCheck: vi.fn().mockResolvedValue([{ vendorName: "Vendor A", metric: "Accuracy Rate", value: 90.5, target: 95 }]),
+  runTaskDeadlineCheck: vi.fn().mockResolvedValue([{ taskTitle: "Review SLA", status: "overdue", dueDate: new Date() }]),
+}));
+
+// Mock the notification module
+vi.mock("./_core/notification", () => ({
+  notifyOwner: vi.fn().mockResolvedValue(true),
 }));
 
 // Mock the LLM module
@@ -625,5 +642,85 @@ describe("settings", () => {
   it("rejects unauthenticated access to settings.update", async () => {
     const caller = appRouter.createCaller(createUnauthContext());
     await expect(caller.settings.update({ avatarId: "option-1" })).rejects.toThrow();
+  });
+});
+
+// ─── Notifications ──────────────────────────────────────────────────────────
+describe("notifications", () => {
+  it("lists notifications for authenticated user", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const notifications = await caller.notifications.list({ limit: 20 });
+    expect(notifications).toHaveLength(2);
+    expect(notifications[0]).toHaveProperty("type", "sla_breach");
+    expect(notifications[0]).toHaveProperty("severity", "critical");
+    expect(notifications[1]).toHaveProperty("type", "task_overdue");
+  });
+
+  it("lists notifications with unreadOnly filter", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const notifications = await caller.notifications.list({ unreadOnly: true });
+    expect(notifications).toBeDefined();
+  });
+
+  it("returns unread notification count", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const count = await caller.notifications.unreadCount();
+    expect(count).toBe(3);
+  });
+
+  it("marks a notification as read", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.notifications.markRead({ id: 1 });
+    expect(result).toEqual({ success: true });
+  });
+
+  it("marks all notifications as read", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.notifications.markAllRead();
+    expect(result).toEqual({ success: true });
+  });
+
+  it("dismisses a notification", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.notifications.dismiss({ id: 1 });
+    expect(result).toEqual({ success: true });
+  });
+
+  it("runs SLA breach check and returns breaches", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.notifications.runSlaCheck();
+    expect(result.count).toBe(1);
+    expect(result.breaches).toHaveLength(1);
+    expect(result.breaches[0]).toHaveProperty("vendorName", "Vendor A");
+    expect(result.breaches[0]).toHaveProperty("metric", "Accuracy Rate");
+  });
+
+  it("runs task deadline check and returns reminders", async () => {
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.notifications.runTaskCheck();
+    expect(result.count).toBe(1);
+    expect(result.reminders).toHaveLength(1);
+    expect(result.reminders[0]).toHaveProperty("taskTitle", "Review SLA");
+    expect(result.reminders[0]).toHaveProperty("status", "overdue");
+  });
+
+  it("rejects unauthenticated access to notifications.list", async () => {
+    const caller = appRouter.createCaller(createUnauthContext());
+    await expect(caller.notifications.list({})).rejects.toThrow();
+  });
+
+  it("rejects unauthenticated access to notifications.unreadCount", async () => {
+    const caller = appRouter.createCaller(createUnauthContext());
+    await expect(caller.notifications.unreadCount()).rejects.toThrow();
+  });
+
+  it("rejects unauthenticated access to notifications.markRead", async () => {
+    const caller = appRouter.createCaller(createUnauthContext());
+    await expect(caller.notifications.markRead({ id: 1 })).rejects.toThrow();
+  });
+
+  it("rejects unauthenticated access to notifications.runSlaCheck", async () => {
+    const caller = appRouter.createCaller(createUnauthContext());
+    await expect(caller.notifications.runSlaCheck()).rejects.toThrow();
   });
 });
