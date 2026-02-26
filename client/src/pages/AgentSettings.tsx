@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Check, Settings2, Volume2, VolumeX, Pencil, MessageSquare, Sparkles } from "lucide-react";
+import { Check, Settings2, Volume2, VolumeX, Pencil, MessageSquare, Sparkles, Play, Square } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useAvatar } from "@/contexts/AvatarContext";
 import { AVATAR_OPTIONS, type AvatarOption } from "@/lib/avatars";
 import { MiaMessage } from "@/components/Mia";
+import { useTTS } from "@/hooks/useTTS";
 
 const TONE_OPTIONS = [
   { value: "professional", label: "Professional", description: "Clear, business-appropriate language" },
@@ -50,6 +51,12 @@ export default function AgentSettings() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(agentName);
   const [customInstructions, setCustomInstructions] = useState(responseStyle.responseCustomInstructions);
+  const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
+
+  const tts = useTTS({
+    enabled: voiceEnabled,
+    onEnd: () => setPreviewingVoice(null),
+  });
 
   const selectedTraits = responseStyle.responsePersonality
     ? responseStyle.responsePersonality.split(",").map(t => t.trim()).filter(Boolean)
@@ -175,6 +182,79 @@ export default function AgentSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Voice Selection */}
+      {voiceEnabled && tts.availableVoices.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Voice Selection</CardTitle>
+            <CardDescription>
+              Choose which voice your assistant uses. Click the play button to preview each voice.
+              The best available voice on your device is selected by default.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {tts.availableVoices.map((voice) => {
+                const isSelected = tts.selectedVoiceName === voice.name;
+                const isPreviewing = previewingVoice === voice.name;
+                return (
+                  <div
+                    key={voice.name}
+                    className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
+                      isSelected
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                        : "border-border/60 hover:border-primary/40 hover:bg-muted/30"
+                    }`}
+                    onClick={() => {
+                      tts.selectVoice(voice.name);
+                      toast.success(`Voice set to ${voice.name}`);
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                      <div className="min-w-0">
+                        <p className={`text-sm font-medium truncate ${isSelected ? "text-primary" : "text-foreground"}`}>
+                          {voice.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {voice.lang} {voice.localService ? "(local)" : "(network)"}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="shrink-0 ml-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isPreviewing) {
+                          tts.stop();
+                          setPreviewingVoice(null);
+                        } else {
+                          setPreviewingVoice(voice.name);
+                          tts.previewVoice(voice.name);
+                        }
+                      }}
+                    >
+                      {isPreviewing ? (
+                        <Square className="h-3.5 w-3.5 text-destructive" />
+                      ) : (
+                        <Play className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            {tts.selectedVoiceName && (
+              <p className="text-xs text-muted-foreground mt-3">
+                Currently using: <span className="font-medium text-foreground">{tts.selectedVoiceName}</span>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Separator />
 

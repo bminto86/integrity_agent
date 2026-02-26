@@ -124,3 +124,12 @@
 - [x] Persist chat history across page navigation within session
 - [x] Smooth open/close animations with framer-motion
 - [x] Tests verified (87 passing)
+
+## Phase 12 — Voice Quality Optimization
+
+- [x] Rewrite useTTS with aggressive ranked voice scoring (200+ for Google neural, tiered Apple/Microsoft/generic)
+- [x] Add natural speech patterns: sentence chunking, varied pacing per chunk, micro-pauses between sentences
+- [x] Add voice preview/selector in Agent Settings with play button for each available voice
+- [x] Store preferred voice in localStorage with auto-restore
+- [x] Clean markdown from text before speaking (strip bold, headers, links, code blocks)
+- [x] Tests verified (87 passing)

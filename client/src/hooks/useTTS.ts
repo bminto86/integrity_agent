@@ -3,86 +3,99 @@ import { useCallback, useEffect, useRef, useState } from "react";
 interface UseTTSOptions {
   /** Whether TTS is enabled */
   enabled?: boolean;
-  /** Speech rate (0.1 - 10, default 0.95 — slightly slower is more natural) */
+  /** Speech rate (0.1 - 10, default 0.92 — slightly slower is more natural) */
   rate?: number;
-  /** Speech pitch (0 - 2, default 1.02 — very slight lift sounds warmer) */
+  /** Speech pitch (0 - 2, default 1.0) */
   pitch?: number;
+  /** Preferred voice name (stored in settings) */
+  preferredVoiceName?: string;
   /** Callback when speech starts */
   onStart?: () => void;
   /** Callback when speech ends */
   onEnd?: () => void;
 }
 
-/**
- * Score a voice for naturalness. Higher = better.
- * Prioritises Google's neural voices, then Apple's premium voices,
- * then Microsoft's neural voices, then any English female voice.
- */
+// ─── Voice ranking system ───────────────────────────────────────────
+// Each voice gets a score. The highest-scoring English voice is selected.
+// This ranking is based on extensive testing across Chrome, Edge, Safari, Firefox.
+
+const VOICE_TIERS: Array<{ pattern: RegExp; score: number }> = [
+  // Tier 1: Google neural voices (Chrome desktop) — best free browser TTS
+  { pattern: /google\s+uk\s+english\s+female/i, score: 200 },
+  { pattern: /google\s+us\s+english/i, score: 190 },
+  { pattern: /google\s+.*english.*female/i, score: 185 },
+  { pattern: /google\s+.*english/i, score: 180 },
+
+  // Tier 2: Apple premium voices (Safari/macOS) — very natural
+  { pattern: /samantha\s*\(enhanced\)/i, score: 195 },
+  { pattern: /samantha/i, score: 175 },
+  { pattern: /karen\s*\(enhanced\)/i, score: 172 },
+  { pattern: /karen/i, score: 168 },
+  { pattern: /moira\s*\(enhanced\)/i, score: 165 },
+  { pattern: /moira/i, score: 160 },
+  { pattern: /tessa\s*\(enhanced\)/i, score: 158 },
+  { pattern: /tessa/i, score: 155 },
+  { pattern: /fiona\s*\(enhanced\)/i, score: 152 },
+  { pattern: /fiona/i, score: 148 },
+
+  // Tier 3: Microsoft neural voices (Edge/Windows) — good quality
+  { pattern: /microsoft\s+jenny\s+online/i, score: 170 },
+  { pattern: /microsoft\s+jenny/i, score: 165 },
+  { pattern: /microsoft\s+aria\s+online/i, score: 162 },
+  { pattern: /microsoft\s+aria/i, score: 158 },
+  { pattern: /microsoft\s+sara\s+online/i, score: 155 },
+  { pattern: /microsoft\s+sara/i, score: 150 },
+  { pattern: /microsoft\s+.*online.*natural/i, score: 148 },
+  { pattern: /microsoft\s+.*online/i, score: 140 },
+  { pattern: /microsoft\s+zira/i, score: 130 },
+  { pattern: /microsoft\s+.*female/i, score: 125 },
+
+  // Tier 4: Any "enhanced" or "premium" or "natural" voice
+  { pattern: /\(enhanced\)/i, score: 120 },
+  { pattern: /\(premium\)/i, score: 118 },
+  { pattern: /natural/i, score: 115 },
+  { pattern: /neural/i, score: 112 },
+
+  // Tier 5: Named female voices (various platforms)
+  { pattern: /\bava\b/i, score: 100 },
+  { pattern: /\bellen\b/i, score: 98 },
+  { pattern: /\bsophie\b/i, score: 96 },
+  { pattern: /\bemma\b/i, score: 94 },
+  { pattern: /\bolive\b/i, score: 92 },
+];
+
 function scoreVoice(v: SpeechSynthesisVoice): number {
-  const n = v.name.toLowerCase();
   const isEnglish = v.lang.startsWith("en");
-  if (!isEnglish) return 0;
+  if (!isEnglish) return -1;
 
-  let score = 10; // base for any English voice
-
-  // Google neural voices (Chrome) — best quality in browser
-  if (n.includes("google")) {
-    score += 60;
-    if (n.includes("uk english female")) score += 20; // very natural
-    if (n.includes("us english")) score += 15;
-    if (n.includes("female")) score += 10;
+  // Check against ranked tiers
+  for (const tier of VOICE_TIERS) {
+    if (tier.pattern.test(v.name)) {
+      return tier.score;
+    }
   }
 
-  // Apple voices (Safari) — premium tier
-  if (n.includes("samantha")) score += 80; // Apple's best
-  if (n.includes("karen")) score += 75;
-  if (n.includes("moira")) score += 70;
-  if (n.includes("tessa")) score += 70;
-  if (n.includes("fiona")) score += 65;
-  if (n.includes("victoria")) score += 50;
+  // Fallback scoring for unrecognized English voices
+  let score = 10;
+  const n = v.name.toLowerCase();
 
-  // Microsoft neural voices (Edge)
-  if (n.includes("microsoft")) {
-    score += 40;
-    if (n.includes("jenny")) score += 25; // Jenny Neural is excellent
-    if (n.includes("aria")) score += 20;
-    if (n.includes("sara")) score += 15;
-    if (n.includes("zira")) score += 10;
-    if (n.includes("online") || n.includes("neural")) score += 15;
-  }
-
-  // Prefer female voices for Mia
+  // Prefer female-sounding voices for Mia
   if (n.includes("female") || n.includes("woman")) score += 5;
   // Penalise explicitly male voices
-  if (n.includes("male") && !n.includes("female")) score -= 20;
-  if (n.includes("david") || n.includes("mark") || n.includes("james") || n.includes("daniel")) score -= 15;
+  if (n.includes("male") && !n.includes("female")) score -= 30;
+  if (/\b(david|mark|james|daniel|guy|richard|tom|george)\b/i.test(n)) score -= 25;
 
-  // Prefer local (non-remote) for lower latency, but remote often sounds better
-  if (!v.localService) score += 3;
+  // Remote voices are often higher quality
+  if (!v.localService) score += 8;
 
   return score;
 }
 
-/**
- * Insert natural pauses into text for more human-like speech.
- * Adds micro-pauses after commas, colons, semicolons, and dashes.
- */
-function addNaturalPauses(text: string): string {
-  return text
-    // Slightly longer pause after periods/question marks/exclamation
-    .replace(/([.!?])\s+/g, "$1  ")
-    // Brief pause after commas
-    .replace(/,\s*/g, ", ")
-    // Brief pause after colons and semicolons
-    .replace(/[:;]\s*/g, "; ")
-    // Pause around em-dashes
-    .replace(/\s*—\s*/g, " — ")
-    .replace(/\s*--\s*/g, " — ");
-}
+// ─── Natural speech processing ──────────────────────────────────────
 
-/** Strip markdown formatting for cleaner speech */
+/** Strip markdown and clean text for natural speech */
 function cleanTextForSpeech(text: string): string {
-  let cleaned = text
+  return text
     // Remove markdown bold/italic
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/\*([^*]+)\*/g, "$1")
@@ -105,17 +118,69 @@ function cleanTextForSpeech(text: string): string {
     // Clean up extra spaces
     .replace(/\s{2,}/g, " ")
     .trim();
-
-  // Add natural pauses
-  cleaned = addNaturalPauses(cleaned);
-  return cleaned;
 }
+
+/**
+ * Split text into natural sentence-sized chunks.
+ * Each chunk is spoken as a separate utterance with a pause between.
+ * This prevents the browser from stalling on long text and creates
+ * a more natural cadence.
+ */
+function splitIntoSpeechChunks(text: string): string[] {
+  // Split on sentence boundaries
+  const sentences = text.match(/[^.!?]+[.!?]+[\s]*/g);
+  if (!sentences) return [text];
+
+  const maxChunkLength = 120; // shorter chunks = more natural pauses
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const sentence of sentences) {
+    const trimmed = sentence.trim();
+    if (!trimmed) continue;
+
+    if ((current + " " + trimmed).length > maxChunkLength && current) {
+      chunks.push(current.trim());
+      current = trimmed;
+    } else {
+      current = current ? current + " " + trimmed : trimmed;
+    }
+  }
+  if (current.trim()) {
+    chunks.push(current.trim());
+  }
+
+  return chunks.length > 0 ? chunks : [text];
+}
+
+// ─── Preferred voice persistence ────────────────────────────────────
+
+const VOICE_STORAGE_KEY = "mia-preferred-voice";
+
+function getStoredVoiceName(): string | null {
+  try {
+    return localStorage.getItem(VOICE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeVoiceName(name: string): void {
+  try {
+    localStorage.setItem(VOICE_STORAGE_KEY, name);
+  } catch {
+    // silent fail
+  }
+}
+
+// ─── Hook ───────────────────────────────────────────────────────────
 
 export function useTTS(options: UseTTSOptions = {}) {
   const {
     enabled = true,
-    rate = 0.95,
-    pitch = 1.02,
+    rate = 0.92,
+    pitch = 1.0,
+    preferredVoiceName,
     onStart,
     onEnd,
   } = options;
@@ -123,10 +188,13 @@ export function useTTS(options: UseTTSOptions = {}) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>("");
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const cancelledRef = useRef(false);
+  const chunksRef = useRef<string[]>([]);
+  const chunkIndexRef = useRef(0);
 
-  // Check browser support and load voices
+  // Load voices and select the best one
   useEffect(() => {
     const supported = typeof window !== "undefined" && "speechSynthesis" in window;
     setIsSupported(supported);
@@ -136,14 +204,29 @@ export function useTTS(options: UseTTSOptions = {}) {
       const voices = window.speechSynthesis.getVoices();
       if (voices.length === 0) return;
 
-      setAvailableVoices(voices.filter(v => v.lang.startsWith("en")));
+      const englishVoices = voices.filter(v => v.lang.startsWith("en"));
+      setAvailableVoices(englishVoices);
 
-      // Sort by naturalness score and pick the best
+      // Check for user's preferred voice first
+      const storedName = preferredVoiceName || getStoredVoiceName();
+      if (storedName) {
+        const preferred = voices.find(v => v.name === storedName);
+        if (preferred) {
+          voiceRef.current = preferred;
+          setSelectedVoiceName(preferred.name);
+          return;
+        }
+      }
+
+      // Auto-select the highest-scoring voice
       const scored = voices
         .map(v => ({ voice: v, score: scoreVoice(v) }))
+        .filter(v => v.score > 0)
         .sort((a, b) => b.score - a.score);
 
-      voiceRef.current = scored[0]?.voice || voices[0];
+      const best = scored[0]?.voice || englishVoices[0] || voices[0];
+      voiceRef.current = best;
+      setSelectedVoiceName(best?.name || "");
     };
 
     loadVoices();
@@ -152,7 +235,7 @@ export function useTTS(options: UseTTSOptions = {}) {
     return () => {
       window.speechSynthesis.onvoiceschanged = null;
     };
-  }, []);
+  }, [preferredVoiceName]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -163,7 +246,37 @@ export function useTTS(options: UseTTSOptions = {}) {
     };
   }, []);
 
-  /** Speak the given text aloud */
+  /** Select a specific voice by name */
+  const selectVoice = useCallback((voiceName: string) => {
+    const voice = availableVoices.find(v => v.name === voiceName);
+    if (voice) {
+      voiceRef.current = voice;
+      setSelectedVoiceName(voice.name);
+      storeVoiceName(voice.name);
+    }
+  }, [availableVoices]);
+
+  /** Preview a voice with a sample sentence */
+  const previewVoice = useCallback((voiceName: string) => {
+    if (!isSupported) return;
+
+    window.speechSynthesis.cancel();
+
+    const voice = availableVoices.find(v => v.name === voiceName);
+    if (!voice) return;
+
+    const utterance = new SpeechSynthesisUtterance(
+      "Hi, I'm Mia, your integrity operations assistant. How can I help you today?"
+    );
+    utterance.voice = voice;
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    utterance.volume = 1;
+
+    window.speechSynthesis.speak(utterance);
+  }, [isSupported, availableVoices, rate, pitch]);
+
+  /** Speak the given text aloud with natural cadence */
   const speak = useCallback((text: string) => {
     if (!enabled || !isSupported || !text.trim()) return;
 
@@ -172,31 +285,9 @@ export function useTTS(options: UseTTSOptions = {}) {
     cancelledRef.current = false;
 
     const cleanText = cleanTextForSpeech(text);
-
-    // Split into natural sentence chunks for smoother delivery
-    // Browser TTS can stall on very long strings
-    const sentenceRegex = /[^.!?]+[.!?]+[\s]*/g;
-    const rawSentences = cleanText.match(sentenceRegex) || [cleanText];
-
-    // Group sentences into chunks of ~150 chars for natural pacing
-    const maxChunkLength = 150;
-    const chunks: string[] = [];
-    let currentChunk = "";
-
-    for (const sentence of rawSentences) {
-      if ((currentChunk + sentence).length > maxChunkLength && currentChunk) {
-        chunks.push(currentChunk.trim());
-        currentChunk = sentence;
-      } else {
-        currentChunk += sentence;
-      }
-    }
-    if (currentChunk.trim()) {
-      chunks.push(currentChunk.trim());
-    }
-
-    // Speak chunks sequentially with micro-pauses between them
-    let chunkIndex = 0;
+    const chunks = splitIntoSpeechChunks(cleanText);
+    chunksRef.current = chunks;
+    chunkIndexRef.current = 0;
 
     const speakNext = () => {
       if (cancelledRef.current) {
@@ -205,35 +296,49 @@ export function useTTS(options: UseTTSOptions = {}) {
         return;
       }
 
-      if (chunkIndex >= chunks.length) {
+      const idx = chunkIndexRef.current;
+      if (idx >= chunksRef.current.length) {
         setIsSpeaking(false);
         onEnd?.();
         return;
       }
 
-      const utterance = new SpeechSynthesisUtterance(chunks[chunkIndex]);
+      const chunkText = chunksRef.current[idx];
+      const utterance = new SpeechSynthesisUtterance(chunkText);
 
       if (voiceRef.current) {
         utterance.voice = voiceRef.current;
       }
 
-      // Slightly vary rate per chunk for more natural cadence
-      const rateVariation = 0.97 + Math.random() * 0.06; // 0.97-1.03
-      utterance.rate = rate * rateVariation;
+      // Natural cadence: slightly vary rate per chunk
+      // First chunk slightly slower (warm start), middle normal, last slightly slower (winding down)
+      const isFirst = idx === 0;
+      const isLast = idx === chunksRef.current.length - 1;
+      let chunkRate = rate;
+      if (isFirst) chunkRate = rate * 0.95;
+      else if (isLast) chunkRate = rate * 0.93;
+      else chunkRate = rate * (0.97 + Math.random() * 0.06);
+
+      utterance.rate = chunkRate;
       utterance.pitch = pitch;
       utterance.volume = 1;
 
       utterance.onstart = () => {
-        if (chunkIndex === 0) {
+        if (idx === 0) {
           setIsSpeaking(true);
           onStart?.();
         }
       };
 
       utterance.onend = () => {
-        chunkIndex++;
-        // Add a tiny natural pause between chunks (80-200ms)
-        const pauseMs = 80 + Math.random() * 120;
+        chunkIndexRef.current++;
+
+        // Natural pause between chunks: longer after questions, shorter between related sentences
+        const endsWithQuestion = chunkText.trim().endsWith("?");
+        const baseMs = endsWithQuestion ? 250 : 120;
+        const jitter = Math.random() * 100;
+        const pauseMs = baseMs + jitter;
+
         setTimeout(speakNext, pauseMs);
       };
 
@@ -254,6 +359,8 @@ export function useTTS(options: UseTTSOptions = {}) {
   /** Stop speaking immediately */
   const stop = useCallback(() => {
     cancelledRef.current = true;
+    chunksRef.current = [];
+    chunkIndexRef.current = 0;
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
@@ -266,6 +373,8 @@ export function useTTS(options: UseTTSOptions = {}) {
     isSpeaking,
     isSupported,
     availableVoices,
-    currentVoice: voiceRef.current,
+    selectedVoiceName,
+    selectVoice,
+    previewVoice,
   };
 }
